@@ -21,7 +21,7 @@ locals {
       cloud_run_memory        = "1Gi"
       cloud_run_min_instances = 1
       cloud_run_max_instances = 5
-      cloudsql_tier           = "db-n1-standard-1"
+      cloudsql_tier           = "db-custom-8-32768"
       cloudsql_ha             = true
       memorystore_size_gb     = 5
       memorystore_tier        = "STANDARD_HA"
@@ -31,7 +31,7 @@ locals {
       cloud_run_memory        = "2Gi"
       cloud_run_min_instances = 2
       cloud_run_max_instances = 10
-      cloudsql_tier           = "db-n1-standard-2"
+      cloudsql_tier           = "db-perf-optimized-N-16"
       cloudsql_ha             = true
       memorystore_size_gb     = 10
       memorystore_tier        = "STANDARD_HA"

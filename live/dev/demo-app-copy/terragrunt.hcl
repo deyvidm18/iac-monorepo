@@ -3,6 +3,8 @@
 # base 'inputs' block (with all merged dev environment config).
 include "root" {
   path = "${get_repo_root()}//root.hcl"
+  merge_strategy = "deep"
+
 }
 
 # 2. Point to the Terraform Module this application uses.
@@ -20,4 +22,11 @@ inputs = {
   application_label = basename(get_terragrunt_dir())
   team_label        = "my-team"
   force_destroy     = true
+  sizing = "medium"
+  t_shirt_sizes = {
+    medium = {
+      cloud_run_cpu = 4
+      cloud_run_memory = "8Gi"
+    }
+  }
 }
