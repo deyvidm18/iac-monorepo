@@ -18,6 +18,6 @@ inputs = {
   # to the module's 'name' variable.
   name = basename(get_terragrunt_dir())
   application_label = basename(get_terragrunt_dir())
-  team_label        = "my-team"
+  team_label        = "my-other-team"
   #force_destroy     = true
 }
