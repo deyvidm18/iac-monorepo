@@ -24,7 +24,7 @@ steps:
   - |
     set -e # Exit immediately on error
 
-    if [ "$_IS_PR" == "true" ]; then
+    if [ -n "$_PR_NUMBER" ]; then
       ACTION="plan"
       git fetch --unshallow
       CHANGED_FILES=$(git diff --name-only origin/$_BASE_BRANCH...origin/$_HEAD_BRANCH)
