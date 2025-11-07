@@ -57,10 +57,10 @@ steps:
 
       case "$ENV_NAME" in
         dev)
-          SERVICE_ACCOUNT="dev-deployer@[DEV_PROJECT_ID].iam.gserviceaccount.com" # <-- REPLACE
+          SERVICE_ACCOUNT="dev-iac-deployer@dev-iac-demo.iam.gserviceaccount.com"
           ;;
         prod)
-          SERVICE_ACCOUNT="prod-deployer@[PROD_PROJECT_ID].iam.gserviceaccount.com" # <-- REPLACE
+          SERVICE_ACCOUNT="prod-iac-deployer@prod-iac-demo.iam.gserviceaccount.com"
           ;;
         *)
           echo "Unknown environment: $ENV_NAME. Skipping."
@@ -82,3 +82,5 @@ steps:
       # Go back to the root for the next loop (live/dev/app1 -> 3 levels up)
       cd ../../..
     done
+options:
+  logging: CLOUD_LOGGING_ONLY
