@@ -6,7 +6,11 @@ steps:
   args:
   - '-c'
   - |
-    apk add --no-cache git
+    apk add --no-cache git unzip
+    wget https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_amd64.zip
+    unzip terraform_1.6.0_linux_amd64.zip
+    mv terraform /usr/local/bin/
+    chmod +x /usr/local/bin/terraform
     wget https://github.com/gruntwork-io/terragrunt/releases/download/v0.58.10/terragrunt_linux_amd64
     mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
     chmod +x /usr/local/bin/terragrunt
