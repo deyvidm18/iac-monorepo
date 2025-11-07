@@ -26,26 +26,24 @@ steps:
 
     if [ "$_IS_PR" == "true" ]; then
       ACTION="plan"
-      git fetch origin main
-      CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+      echo "PR detected, planning all terragrunt modules."
+      TARGET_DIRS=$(find live -type f -name 'terragrunt.hcl' | xargs dirname)
     else
       ACTION="apply"
       git fetch --depth=2
       CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
-    fi
+      echo "Changed files: $$CHANGED_FILES"
 
-    echo "Action: $$ACTION"
-    echo "Changed files: $$CHANGED_FILES"
-
-    # --- UPDATED LOGIC ---
-    # Detect changes in shared modules or env.hcl files
-    if echo "$$CHANGED_FILES" | grep -q "modules/" || echo "$$CHANGED_FILES" | grep -q "env.hcl"; then
-      echo "Shared module or environment default changed, targeting ALL applications."
-      # Find all terragrunt.hcl files inside the 'live' directory
-      TARGET_DIRS=$(find live -type f -name 'terragrunt.hcl' | xargs dirname)
-    else
-      # Detect changes in specific application directories inside 'live'
-      TARGET_DIRS=$(echo "$$CHANGED_FILES" | grep -o 'live/[^/]*/[^/]*' | sort | uniq)
+      # --- UPDATED LOGIC ---
+      # Detect changes in shared modules or env.hcl files
+      if echo "$$CHANGED_FILES" | grep -q "modules/" || echo "$$CHANGED_FILES" | grep -q "env.hcl"; then
+        echo "Shared module or environment default changed, targeting ALL applications."
+        # Find all terragrunt.hcl files inside the 'live' directory
+        TARGET_DIRS=$(find live -type f -name 'terragrunt.hcl' | xargs dirname)
+      else
+        # Detect changes in specific application directories inside 'live'
+        TARGET_DIRS=$(echo "$$CHANGED_FILES" | grep -o 'live/[^/]*/[^/]*' | sort | uniq)
+      fi
     fi
 
     if [ -z "$$TARGET_DIRS" ]; then
