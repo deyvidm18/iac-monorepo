@@ -29,33 +29,33 @@ steps:
       CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
     fi
 
-    echo "Action: $ACTION"
-    echo "Changed files: $CHANGED_FILES"
+    echo "Action: $$ACTION"
+    echo "Changed files: $$CHANGED_FILES"
 
     # --- UPDATED LOGIC ---
     # Detect changes in shared modules or env.hcl files
-    if echo "$CHANGED_FILES" | grep -q "modules/" || echo "$CHANGED_FILES" | grep -q "env.hcl"; then
+    if echo "$$CHANGED_FILES" | grep -q "modules/" || echo "$$CHANGED_FILES" | grep -q "env.hcl"; then
       echo "Shared module or environment default changed, targeting ALL applications."
       # Find all terragrunt.hcl files inside the 'live' directory
       TARGET_DIRS=$(find live -type f -name 'terragrunt.hcl' | xargs dirname)
     else
       # Detect changes in specific application directories inside 'live'
-      TARGET_DIRS=$(echo "$CHANGED_FILES" | grep -o 'live/[^/]*/[^/]*' | sort | uniq)
+      TARGET_DIRS=$(echo "$$CHANGED_FILES" | grep -o 'live/[^/]*/[^/]*' | sort | uniq)
     fi
 
-    if [ -z "$TARGET_DIRS" ]; then
+    if [ -z "$$TARGET_DIRS" ]; then
       echo "No infrastructure changes detected. Exiting."
       exit 0
     fi
 
-    echo "Target directories to process: $TARGET_DIRS"
+    echo "Target directories to process: $$TARGET_DIRS"
 
     # Loop through each affected directory (e.g., live/dev/app1)
-    for DIR in $TARGET_DIRS; do
-      ENV_NAME=$(echo "$DIR" | cut -d'/' -f2) # Extracts 'dev' or 'prod'
-      echo "--- Processing environment: $ENV_NAME in directory $DIR ---"
+    for DIR in $$TARGET_DIRS; do
+      ENV_NAME=$(echo "$$DIR" | cut -d'/' -f2) # Extracts 'dev' or 'prod'
+      echo "--- Processing environment: $$ENV_NAME in directory $$DIR ---"
 
-      case "$ENV_NAME" in
+      case "$$ENV_NAME" in
         dev)
           SERVICE_ACCOUNT="dev-iac-deployer@dev-iac-demo.iam.gserviceaccount.com"
           ;;
@@ -63,17 +63,17 @@ steps:
           SERVICE_ACCOUNT="prod-iac-deployer@prod-iac-demo.iam.gserviceaccount.com"
           ;;
         *)
-          echo "Unknown environment: $ENV_NAME. Skipping."
+          echo "Unknown environment: $$ENV_NAME. Skipping."
           continue
           ;;
       esac
       
-      cd "$DIR"
+      cd "$$DIR"
 
-      echo "Using Service Account: $SERVICE_ACCOUNT for action: $ACTION"
-      gcloud auth print-access-token --impersonate-service-account="$SERVICE_ACCOUNT" | terraform login
+      echo "Using Service Account: $$SERVICE_ACCOUNT for action: $$ACTION"
+      gcloud auth print-access-token --impersonate-service-account="$$SERVICE_ACCOUNT" | terraform login
 
-      if [ "$ACTION" == "plan" ]; then
+      if [ "$$ACTION" == "plan" ]; then
         terragrunt plan
       else
         terragrunt apply --terragrunt-non-interactive --auto-approve
