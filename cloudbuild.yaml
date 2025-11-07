@@ -1,12 +1,13 @@
 steps:
-# Step 1: Install Tools
-- id: 'Install Tools'
-  name: 'alpine'
-  entrypoint: 'sh'
+# Step 1: Install Tools, Detect Changes and Execute Terragrunt
+- id: 'Install Tools, Detect Changes and Run Terragrunt'
+  name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
   args:
   - '-c'
   - |
-    apk add --no-cache git unzip
+    # Install Terraform and Terragrunt
+    apt-get update && apt-get install -y unzip
     wget https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_amd64.zip
     unzip terraform_1.6.0_linux_amd64.zip
     mv terraform /usr/local/bin/
@@ -15,13 +16,6 @@ steps:
     mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
     chmod +x /usr/local/bin/terragrunt
 
-# Step 2: Detect Changes and Execute Terragrunt
-- id: 'Detect Changes and Run Terragrunt'
-  name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'bash'
-  args:
-  - '-c'
-  - |
     set -e # Exit immediately on error
 
     if [ -n "$_PR_NUMBER" ]; then
