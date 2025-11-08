@@ -114,8 +114,8 @@ EOF
       echo "Not a PR. Skipping comment."
     fi
   volumes:
-  - name: 'secrets'
-    path: '/secrets'
+    - name: 'secrets'
+      path: '/secrets'
 
 options:
   logging: CLOUD_LOGGING_ONLY
