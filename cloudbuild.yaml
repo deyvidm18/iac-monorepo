@@ -63,7 +63,7 @@ steps:
     for DIR in $$TARGET_DIRS; do
       ENV_NAME=$(echo "$$DIR" | cut -d'/' -f2) # Extracts 'dev' or 'prod'
       echo "--- Processing environment: $$ENV_NAME in directory $$DIR ---"
-
+      
       cd "$$DIR"
 
       if [ "$$ACTION" == "plan" ]; then
