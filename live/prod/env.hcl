@@ -8,4 +8,5 @@ locals {
   private_ip_allocation_name = "dev-private-services-access"
   proxy_only_subnet_name   = "dev-proxy-subnet"
   environment_label = local.environment
+  impersonate_service_account = "prod-iac-deployer@prod-iac-demo.iam.gserviceaccount.com"
 }

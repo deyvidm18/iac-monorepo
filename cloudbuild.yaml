@@ -64,23 +64,7 @@ steps:
       ENV_NAME=$(echo "$$DIR" | cut -d'/' -f2) # Extracts 'dev' or 'prod'
       echo "--- Processing environment: $$ENV_NAME in directory $$DIR ---"
 
-      case "$$ENV_NAME" in
-        dev)
-          SERVICE_ACCOUNT="dev-iac-deployer@dev-iac-demo.iam.gserviceaccount.com"
-          ;;
-        prod)
-          SERVICE_ACCOUNT="prod-iac-deployer@prod-iac-demo.iam.gserviceaccount.com"
-          ;;
-        *)
-          echo "Unknown environment: $$ENV_NAME. Skipping."
-          continue
-          ;;
-      esac
-      
       cd "$$DIR"
-
-      echo "Using Service Account: $$SERVICE_ACCOUNT for action: $$ACTION"
-      export GOOGLE_OAUTH_ACCESS_TOKEN=$(gcloud auth print-access-token --impersonate-service-account="$$SERVICE_ACCOUNT")
 
       if [ "$$ACTION" == "plan" ]; then
         terragrunt plan

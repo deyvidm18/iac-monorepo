@@ -29,10 +29,6 @@ locals {
 inputs = merge(
   local.t_shirt_overrides, # Your app-specific overrides
   {
-    # Automatically get the directory name ("app1") and pass it
-    # to the module's 'name' variable.
-    name = basename(get_terragrunt_dir())
-    application_label = basename(get_terragrunt_dir())
     team_label        = "my-team"
   }
 )
