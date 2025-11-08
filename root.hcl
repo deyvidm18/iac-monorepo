@@ -37,7 +37,7 @@ generate "provider" {
   }
 
   data "google_service_account_access_token" "default" {
-    provier = google.tokegen
+    provider = google.tokegen
     target_service_account = "${local.environment_defaults.impersonate_service_account}"
     lifetime = "1000s"
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
@@ -66,11 +66,8 @@ generate "provider" {
 # 3. Define the base 'inputs' block
 #  This block will be inherited and merged by every application.
 inputs = merge(
-  {local.global_defaults.locals,
-  local.environment_defaults.locals}
-  ,
-  {
-    name = basename(get_terragrunt_dir()),
-    application_label = basename(get_terragrunt_dir())
-  }
+  local.global_defaults.locals,
+  local.environment_defaults.locals
+  name = basename(get_terragrunt_dir()),
+  application_label = basename(get_terragrunt_dir())
 )
