@@ -5,16 +5,16 @@
 locals {
   # Load the global defaults from the root env.hcl
   # Use read_hcl instead of the deprecated read_terragrunt_file
-  global_defaults = read_terragrunt_config("${get_repo_root()}//env.hcl")
+  global_defaults = read_terragrunt_config("${get_repo_root()}//env.hcl").locals
 
   # Find and load the nearest environment-specific env.hcl
   # Use read_hcl here as well
-  environment_defaults = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  environment_defaults = read_terragrunt_config(find_in_parent_folders("env.hcl")).locals
 
   # Extract the variables we need for easy access
-  gcp_region             = local.global_defaults.locals.region
-  gcp_zone               = local.global_defaults.locals.zone
-  gcp_iac_project_id     = local.global_defaults.locals.gcp_iac_project_id
+  gcp_region             = local.global_defaults.region
+  gcp_zone               = local.global_defaults.zone
+  gcp_iac_project_id     = local.global_defaults.gcp_iac_project_id
 }
 
 # 2. Generate the GCP provider block
@@ -52,11 +52,9 @@ generate "provider" {
 
   terraform {
     backend "gcs" {
-      bucket   = "tf-iac-state-dmartinez"
+      bucket   = "${local.global_defaults.tf_bucket}"
       prefix   = "${path_relative_to_include()}/terraform.tfstate"
       impersonate_service_account = "${local.environment_defaults.impersonate_service_account}"
-      project  = "${local.gcp_iac_project_id}"
-      location = "${local.gcp_region}"
     }
   }
 
@@ -66,8 +64,10 @@ generate "provider" {
 # 3. Define the base 'inputs' block
 #  This block will be inherited and merged by every application.
 inputs = merge(
-  local.global_defaults.locals,
-  local.environment_defaults.locals
-  name = basename(get_terragrunt_dir()),
-  application_label = basename(get_terragrunt_dir())
+  local.global_defaults,
+  local.environment_defaults,
+  {
+    name = basename(get_terragrunt_dir())
+    application_label = basename(get_terragrunt_dir())
+  }
 )

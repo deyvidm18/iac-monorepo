@@ -27,6 +27,12 @@ steps:
     echo "Running terraform version..."
     /usr/local/bin/terraform version
     echo "--- END DEBUG INFO ---"
+    echo "--- Running in DEBUG mode: Targeting live/dev/demo-app directly ---"
+    echo "--- Contents of root env.hcl: ---"
+    cat env.hcl
+    echo "------------------------------------"
+    cd live/dev/demo-app
+    terragrunt plan
 
     if [ -n "$_PR_NUMBER" ]; then
       ACTION="plan"

@@ -3,6 +3,7 @@ locals {
   region = "us-central1"
   zone   = "us-central1-a"
   gcp_iac_project_id = "dev-iac-demo"
+  tf_bucket = "tf-iac-state-dmartinez"
 
   // T-Shirt Sizing
   t_shirt_sizes = {
