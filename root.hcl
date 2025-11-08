@@ -37,10 +37,10 @@ generate "provider" {
   }
 
   data "google_service_account_access_token" "default" {
-    provider = google.tokegen
+    provider               = google.tokegen
     target_service_account = "${local.environment_defaults.impersonate_service_account}"
-    lifetime = "1000s"
-    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+    lifetime               = "1000s"
+    scopes                 = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
   provider "google" {
@@ -50,18 +50,27 @@ generate "provider" {
     access_token = data.google_service_account_access_token.default.access_token
   }
 
-  terraform {
-    backend "gcs" {
-      bucket   = "${local.global_defaults.tf_bucket}"
-      prefix   = "${path_relative_to_include()}/terraform.tfstate"
-      impersonate_service_account = "${local.environment_defaults.impersonate_service_account}"
-    }
-  }
-
   EOF
   }
 
-# 3. Define the base 'inputs' block
+# Remote State GCS
+ remote_state {
+  backend = "gcs"
+  generate = {
+    path      = "backend.tf"
+    if_exists = "overwrite_terragrunt"
+  }
+
+  config = {
+    bucket                      = local.global_defaults.tf_bucket
+    prefix                      = "${path_relative_to_include()}/terraform.tfstate"
+    project                     = local.gcp_iac_project_id
+    location                    = local.gcp_region
+    impersonate_service_account = "${local.environment_defaults.impersonate_service_account}"
+  }
+} 
+
+#  4. Define the base 'inputs' block
 #  This block will be inherited and merged by every application.
 inputs = merge(
   local.global_defaults,

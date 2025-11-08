@@ -1,5 +1,4 @@
 terraform {
-  backend "gcs" {}
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -13,16 +12,19 @@ locals {
   name_prefix = var.name
 
   enabled_apis = {
-    "run.googleapis.com"               = var.enable_cloud_run_frontend || var.enable_cloud_run_backend
-    "sqladmin.googleapis.com"          = var.enable_cloud_sql
-    "firestore.googleapis.com"         = var.enable_firestore
-    "redis.googleapis.com"             = var.enable_memorystore
-    "pubsub.googleapis.com"            = var.enable_pubsub_topics
-    "compute.googleapis.com"           = var.enable_load_balancer
-    "iam.googleapis.com"               = true // Always needed
-    "vpcaccess.googleapis.com"         = var.enable_cloud_run_frontend || var.enable_cloud_run_backend
-    "iap.googleapis.com"               = var.enable_iap
-    "servicenetworking.googleapis.com" = var.enable_cloud_sql || var.enable_memorystore
+    "run.googleapis.com"                  = var.enable_cloud_run_frontend || var.enable_cloud_run_backend
+    "sqladmin.googleapis.com"             = var.enable_cloud_sql
+    "firestore.googleapis.com"            = var.enable_firestore
+    "redis.googleapis.com"                = var.enable_memorystore
+    "pubsub.googleapis.com"               = var.enable_pubsub_topics
+    "compute.googleapis.com"              = var.enable_load_balancer
+    "iam.googleapis.com"                  = true // Always needed
+    "cloudresourcemanager.googleapis.com" = true // Always needed
+    "logging.googleapis.com"              = true // Always needed
+    "compute.googleapis.com"              = true
+    "vpcaccess.googleapis.com"            = var.enable_cloud_run_frontend || var.enable_cloud_run_backend
+    "iap.googleapis.com"                  = var.enable_iap
+    "servicenetworking.googleapis.com"    = var.enable_cloud_sql || var.enable_memorystore
   }
 }
 
