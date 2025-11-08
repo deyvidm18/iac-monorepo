@@ -55,7 +55,6 @@ generate "provider" {
       bucket  = "${local.global_defaults.tf_bucket}"
       prefix  = "${path_relative_to_include()}/terraform.tfstate"
       impersonate_service_account = "${local.environment_defaults.impersonate_service_account}"
-
     }
   }
 
