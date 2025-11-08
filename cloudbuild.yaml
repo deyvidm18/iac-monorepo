@@ -72,51 +72,46 @@ steps:
       cd - # Go back to the previous directory
     done
 
-# --- DEBUGGING: Temporarily commenting out the GitHub comment step ---
-# # Step 2: Post Plan to GitHub PR
-# - id: 'Post Plan to GitHub'
-#   name: 'gcr.io/cloud-builders/gcloud'
-#   entrypoint: 'bash'
-#   args:
-#   - '-c'
-#   - |
-#     # This step only runs for pull requests
-#     if [ -n "$_PR_NUMBER" ]; then
-#       # Access the secret from the mounted volume
-#       GITHUB_TOKEN=$(cat /secrets/github-token)
-#       ALL_PLANS_FILE="/workspace/all_plans.txt"
-# 
-#       # Check if there are any plans to post
-#       if [ ! -s $$ALL_PLANS_FILE ]; then
-#         COMMENT_BODY="✅ Terragrunt Plan successful. No changes detected."
-#       else
-#         # Use a heredoc for the main body
-#         COMMENT_BODY=$(cat <<EOF
-# ### Terragrunt Plan Summary
-# <details><summary>Click to expand</summary>
-# 
-# $(cat $$ALL_PLANS_FILE)
-# 
-# </details>
-# EOF
-# )
-#       fi
-# 
-#       # The API requires the body to be a valid JSON string.
-#       # We use jq to format it correctly.
-#       JSON_PAYLOAD=$(jq -n --arg body "$$COMMENT_BODY" '{body: $body}')
-# 
-#       curl -s -X POST \
-#         -H "Authorization: token $$GITHUB_TOKEN" \
-#         -H "Accept: application/vnd.github.v3+json" \
-#         "https://api.github.com/repos/$$REPO_FULL_NAME/issues/$$_PR_NUMBER/comments" \
-#         -d "$$JSON_PAYLOAD"
-#     else
-#       echo "Not a PR. Skipping comment."
-#     fi
-#   volumes:
-#     - name: 'secrets'
-#       path: '/secrets'
+# Step 2: Post Plan to GitHub PR
+- id: 'Post Plan to GitHub'
+  name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  secretEnv: ['GITHUB_TOKEN']
+  args:
+  - '-c'
+  - |
+    # This step only runs for pull requests
+    if [ -n "$_PR_NUMBER" ]; then
+      ALL_PLANS_FILE="/workspace/all_plans.txt"
+
+      # Check if there are any plans to post
+      if [ ! -s $$ALL_PLANS_FILE ]; then
+        COMMENT_BODY="✅ Terragrunt Plan successful. No changes detected."
+      else
+        # Use a heredoc for the main body
+        COMMENT_BODY=$(cat <<EOF
+### Terragrunt Plan Summary
+<details><summary>Click to expand</summary>
+
+$(cat $$ALL_PLANS_FILE)
+
+</details>
+EOF
+)
+      fi
+
+      # The API requires the body to be a valid JSON string.
+      # We use jq to format it correctly.
+      JSON_PAYLOAD=$(jq -n --arg body "$$COMMENT_BODY" '{body: $body}')
+
+      curl -s -X POST \
+        -H "Authorization: token $$GITHUB_TOKEN" \
+        -H "Accept: application/vnd.github.v3+json" \
+        "https://api.github.com/repos/$$REPO_FULL_NAME/issues/$$_PR_NUMBER/comments" \
+        -d "$$JSON_PAYLOAD"
+    else
+      echo "Not a PR. Skipping comment."
+    fi
 
 options:
   logging: CLOUD_LOGGING_ONLY
@@ -124,4 +119,4 @@ options:
 availableSecrets:
   secretManager:
   - versionName: projects/$$PROJECT_ID/secrets/github-token/versions/latest
-    fileName: '/secrets/github-token'
+    env: 'GITHUB_TOKEN'
