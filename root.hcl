@@ -61,24 +61,7 @@ generate "provider" {
   EOF
   }
 
-# # Remote State GCS
-#  remote_state {
-#   backend = "gcs"
-#   generate = {
-#     path      = "backend.tf"
-#     if_exists = "overwrite_terragrunt"
-#   }
-
-#   config = {
-#     bucket                      = 
-#     prefix                      = 
-#     project                     = local.gcp_iac_project_id
-#     location                    = local.gcp_region
-#     impersonate_service_account = "${local.environment_defaults.impersonate_service_account}"
-#   }
-# } 
-
-#  4. Define the base 'inputs' block
+#  3. Define the base 'inputs' block
 #  This block will be inherited and merged by every application.
 inputs = merge(
   local.global_defaults,
