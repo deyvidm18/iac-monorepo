@@ -82,7 +82,7 @@ steps:
     # Fetch the secret only if this is a pull request
     if [ -n "$_PR_NUMBER" ]; then
       echo "Fetching GitHub token..."
-      gcloud secrets versions access latest --secret=github-token --project=$$PROJECT_ID --format='get(payload.data)' | tr '_-' '/+' | base64 -d > /workspace/github_token.txt
+      gcloud secrets versions access latest --secret=github-token --project=$PROJECT_ID --format='get(payload.data)' | tr '_-' '/+' | base64 -d > /workspace/github_token.txt
     else
       echo "Not a PR, skipping token fetch."
     fi
