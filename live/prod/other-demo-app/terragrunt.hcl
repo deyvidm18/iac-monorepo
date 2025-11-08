@@ -3,6 +3,7 @@
 # 'inputs' block containing the merged dev environment config.
 include "root" {
   path = "${get_repo_root()}//root.hcl"
+  merge_strategy = "deep"
 }
 
 # 2. Point to the Terraform Module this application uses.
