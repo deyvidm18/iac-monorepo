@@ -76,7 +76,8 @@ steps:
 - id: 'Post Plan to GitHub'
   name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
-  secretEnv: ['GITHUB_TOKEN']
+  env:
+  - 'GITHUB_TOKEN=${_GITHUB_TOKEN}'
   args:
   - '-c'
   - |
@@ -119,4 +120,4 @@ options:
 availableSecrets:
   secretManager:
   - versionName: projects/$$PROJECT_ID/secrets/github-token/versions/latest
-    env: 'GITHUB_TOKEN'
+    env: '_GITHUB_TOKEN'
