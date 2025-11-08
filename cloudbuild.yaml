@@ -96,6 +96,7 @@ steps:
   - |
     # This step only runs for pull requests
     if [ -n "$_PR_NUMBER" ]; then
+      apt-get update && apt-get install -y jq
       GITHUB_TOKEN=$(cat /workspace/github_token.txt)
       ALL_PLANS_FILE="/workspace/all_plans.txt"
 
