@@ -72,16 +72,31 @@ steps:
       cd - # Go back to the previous directory
     done
 
-# Step 2: Post Plan to GitHub PR
+# Step 2: Fetch GitHub Token
+- id: 'Fetch GitHub Token'
+  name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    # Fetch the secret only if this is a pull request
+    if [ -n "$_PR_NUMBER" ]; then
+      echo "Fetching GitHub token..."
+      gcloud secrets versions access latest --secret=github-token --project=$$PROJECT_ID --format='get(payload.data)' | tr '_-' '/+' | base64 -d > /workspace/github_token.txt
+    else
+      echo "Not a PR, skipping token fetch."
+    fi
+
+# Step 3: Post Plan to GitHub PR
 - id: 'Post Plan to GitHub'
   name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
-  secretEnv: ['GITHUB_TOKEN']
   args:
   - '-c'
   - |
     # This step only runs for pull requests
     if [ -n "$_PR_NUMBER" ]; then
+      GITHUB_TOKEN=$(cat /workspace/github_token.txt)
       ALL_PLANS_FILE="/workspace/all_plans.txt"
 
       # Check if there are any plans to post
@@ -108,8 +123,3 @@ steps:
 
 options:
   logging: CLOUD_LOGGING_ONLY
-
-availableSecrets:
-  secretManager:
-  - versionName: projects/$$PROJECT_ID/secrets/github-token/versions/latest
-    env: 'GITHUB_TOKEN'
