@@ -1,6 +1,6 @@
 steps:
-# Step 1: Install Tools and Detect Changes
-- id: 'Install Tools and Detect Changes'
+# Step 1: Install Tools, Detect Changes, and Generate Plans
+- id: 'Install Tools, Detect Changes, and Generate Plans'
   name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
@@ -18,6 +18,9 @@ steps:
     mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
     chmod +x /usr/local/bin/terragrunt
 
+    # Create a directory for plan files
+    mkdir -p /workspace/plans
+
     if [ -n "$_PR_NUMBER" ]; then
       ACTION="plan"
       git fetch --unshallow
@@ -31,33 +34,39 @@ steps:
     echo "Action: $$ACTION"
     echo "Changed files: $$CHANGED_FILES"
 
-    if [ "$$ACTION" == "apply" ]; then
-      # For apply, run in a simple loop
-      for DIR in $(echo "$$CHANGED_FILES" | grep -o 'live/[^/]*/[^/]*' | sort | uniq); do
-        (
-          echo "--- Applying changes in $$DIR ---"
-          cd "$$DIR"
-          terragrunt apply --terragrunt-non-interactive --auto-approve
-        )
-      done
-      exit 0
-    fi
-
-    # For plan, detect directories and save them for the next step
+    # Detect Target Directories
     if echo "$$CHANGED_FILES" | grep -q "modules/" || echo "$$CHANGED_FILES" | grep -q "env.hcl"; then
       echo "Shared module or environment default changed, targeting ALL applications."
-      find live -type f -name 'terragrunt.hcl' | xargs dirname > /workspace/target_dirs.txt
+      TARGET_DIRS=$(find live -type f -name 'terragrunt.hcl' | xargs dirname)
     else
-      echo "$$CHANGED_FILES" | grep -o 'live/[^/]*/[^/]*' | sort | uniq > /workspace/target_dirs.txt
+      TARGET_DIRS=$(echo "$$CHANGED_FILES" | grep -o 'live/[^/]*/[^/]*' | sort | uniq)
     fi
 
-    if [ ! -s /workspace/target_dirs.txt ]; then
+    if [ -z "$$TARGET_DIRS" ]; then
       echo "No infrastructure changes detected. Exiting."
+      touch /workspace/target_dirs.txt # Create empty file to signal no changes
       exit 0
     fi
-
+    
+    echo "$$TARGET_DIRS" > /workspace/target_dirs.txt
     echo "Target directories to process:"
     cat /workspace/target_dirs.txt
+
+    # Generate plans or apply changes
+    for DIR in $$TARGET_DIRS;
+    do
+      (
+        echo "--- Processing $$DIR ---"
+        cd "$$DIR"
+        if [ "$$ACTION" == "plan" ]; then
+          # Sanitize directory name for the filename
+          PLAN_FILENAME=$(echo "$$DIR" | sed 's/[^a-zA-Z0-9]/-/g')
+          terragrunt plan -no-color > "/workspace/plans/$${PLAN_FILENAME}.txt" 2>&1 || true
+        else
+          terragrunt apply --terragrunt-non-interactive --auto-approve
+        fi
+      )
+    done
 
 # Step 2: Fetch GitHub Token
 - id: 'Fetch GitHub Token'
@@ -78,58 +87,49 @@ steps:
   args:
   - '-c'
   - |
-    set -ex
+    set -e
     if [ -n "$_PR_NUMBER" ]; then
+      if [ ! -s /workspace/target_dirs.txt ]; then
+        echo "No target directories to process. Skipping comment."
+        exit 0
+      fi
+
       apt-get update && apt-get install -y jq
 
       GITHUB_TOKEN=$(cat /workspace/github_token.txt)
       TARGET_DIRS=$(cat /workspace/target_dirs.txt)
       COMMENTS_URL="https://api.github.com/repos/$REPO_FULL_NAME/issues/$_PR_NUMBER/comments"
-
-      # Get all comments on the PR once
-      echo "--- Getting all comments ---"
+      
       ALL_COMMENTS=$(curl -s -H "Authorization: token $$GITHUB_TOKEN" -H "Accept: application/vnd.github.v3+json" "$$COMMENTS_URL")
-      echo "ALL_COMMENTS: $$ALL_COMMENTS"
 
-      for DIR in $$TARGET_DIRS; do
-        (
-          set -ex
-          echo "--- Processing plan for $$DIR ---"
-          cd "$$DIR"
+      for DIR in $$TARGET_DIRS;
+      do
+        PLAN_FILENAME=$(echo "$$DIR" | sed 's/[^a-zA-Z0-9]/-/g')
+        PLAN_OUTPUT=$(cat "/workspace/plans/$${PLAN_FILENAME}.txt")
 
-          # Run plan and save output
-          echo "--- Running terragrunt plan ---"
-          PLAN_OUTPUT=$(terragrunt plan -no-color 2>&1 || true)
-          echo "--- Plan output captured ---"
+        PLAN_SUMMARY=$(echo "$$PLAN_OUTPUT" | grep -o 'Plan:.*' || echo "Plan: No changes.")
+        
+        COMMENT_MARKER="<!-- terragrunt-plan-for: $$DIR -->"
+        COMMENT_TITLE="### Terragrunt Plan for \`$$DIR\`"
+        COMMENT_BODY=$(printf "%s\n**%s**\n<details><summary>Full Plan Output</summary>\n\n\`\`\`
+%s
+\`\`\`
+</details>
+%s" 
+          "$$COMMENT_TITLE" "$$PLAN_SUMMARY" "$$PLAN_OUTPUT" "$$COMMENT_MARKER")
 
-          # Extract summary and format comment
-          PLAN_SUMMARY=$(echo "$$PLAN_OUTPUT" | grep -o 'Plan:.*')
-          if [ -z "$$PLAN_SUMMARY" ]; then
-            PLAN_SUMMARY="No changes."
-          fi
-          
-          COMMENT_MARKER="<!-- terragrunt-plan-for: $$DIR -->"
-          COMMENT_TITLE="### Terragrunt Plan for \`$$DIR\`"
-          COMMENT_BODY=$(printf "%s\n**%s**\n<details><summary>Full Plan Output</summary>\n\n\`\`\`\n%s\n\`\`\`\n</details>\n%s" \
-            "$$COMMENT_TITLE" "$$PLAN_SUMMARY" "$$PLAN_OUTPUT" "$$COMMENT_MARKER")
+        EXISTING_COMMENT_ID=$(echo "$$ALL_COMMENTS" | jq --arg marker "$$COMMENT_MARKER" '.[] | select(.body | contains($marker)).id')
+        JSON_PAYLOAD=$(jq -n --arg body "$$COMMENT_BODY" '{body: $body}')
 
-          # Find existing comment ID
-          echo "--- Finding existing comment ---"
-          EXISTING_COMMENT_ID=$(echo "$$ALL_COMMENTS" | jq --arg marker "$$COMMENT_MARKER" '.[] | select(.body | contains($marker)).id')
-          echo "EXISTING_COMMENT_ID: $$EXISTING_COMMENT_ID"
-
-          JSON_PAYLOAD=$(jq -n --arg body "$$COMMENT_BODY" '{body: $body}')
-
-          if [ -n "$$EXISTING_COMMENT_ID" ]; then
-            echo "Updating existing comment $$EXISTING_COMMENT_ID for $$DIR"
-            curl -s -X PATCH -H "Authorization: token $$GITHUB_TOKEN" \
-              "https://api.github.com/repos/$REPO_FULL_NAME/issues/comments/$$EXISTING_COMMENT_ID" -d "$$JSON_PAYLOAD"
-          else
-            echo "Creating new comment for $$DIR"
-            curl -s -X POST -H "Authorization: token $$GITHUB_TOKEN" \
-              "$$COMMENTS_URL" -d "$$JSON_PAYLOAD"
-          fi
-        )
+        if [ -n "$$EXISTING_COMMENT_ID" ]; then
+          echo "Updating existing comment $$EXISTING_COMMENT_ID for $$DIR"
+          curl -s -X PATCH -H "Authorization: token $$GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO_FULL_NAME/issues/comments/$$EXISTING_COMMENT_ID" -d "$$JSON_PAYLOAD"
+        else
+          echo "Creating new comment for $$DIR"
+          curl -s -X POST -H "Authorization: token $$GITHUB_TOKEN" \
+            "$$COMMENTS_URL" -d "$$JSON_PAYLOAD"
+        fi
       done
     else
       echo "Not a PR. Skipping comment."
