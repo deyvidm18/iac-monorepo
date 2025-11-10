@@ -54,22 +54,22 @@ steps:
 
     # Loop through each affected directory
     for DIR in $$TARGET_DIRS; do
-      ENV_NAME=$(echo "$$DIR" | cut -d'/' -f2)
-      echo "--- Processing environment: $$ENV_NAME in directory $$DIR ---"
-      
-      cd "$$DIR"
+      ( # Start subshell
+        ENV_NAME=$(echo "$$DIR" | cut -d'/' -f2)
+        echo "--- Processing environment: $$ENV_NAME in directory $$DIR ---"
+        
+        cd "$$DIR"
 
-      if [ "$$ACTION" == "plan" ]; then
-        # Run plan and append output to the file
-        echo -e "\n\n**Plan for $$DIR**\n\`\`\`\n" >> $$ALL_PLANS_FILE
-        # Use || true to prevent build failure if plan has changes (non-zero exit code)
-        terragrunt plan -no-color >> $$ALL_PLANS_FILE 2>&1 || true
-        echo -e "\n\`\`\`" >> $$ALL_PLANS_FILE
-      else
-        terragrunt apply --terragrunt-non-interactive --auto-approve
-      fi
-      
-      cd - # Go back to the previous directory
+        if [ "$$ACTION" == "plan" ]; then
+          # Run plan and append output to the file
+          echo -e "\n\n**Plan for $$DIR**\n\`\`\`\n" >> $$ALL_PLANS_FILE
+          # Use || true to prevent build failure if plan has changes (non-zero exit code)
+          terragrunt plan -no-color >> $$ALL_PLANS_FILE 2>&1 || true
+          echo -e "\n\`\`\`" >> $$ALL_PLANS_FILE
+        else
+          terragrunt apply --terragrunt-non-interactive --auto-approve
+        fi
+      ) # End subshell
     done
 
 # Step 2: Fetch GitHub Token

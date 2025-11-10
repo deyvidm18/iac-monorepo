@@ -230,7 +230,7 @@ graph TD
 
         FrontendProd -- Invokes --> BackendProd
         BackendProd -- Private Service Connect --> CloudSQLProd
-        BackendDev -- VPC Egress --> MemorystoreProd
+        BackendProd -- VPC Egress --> MemorystoreProd
         BackendProd -- API --> FirestoreProd
         BackendProd -- API --> PubSubProd
         LBProd -- IAP --> FrontendProd
