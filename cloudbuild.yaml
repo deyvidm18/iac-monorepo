@@ -78,7 +78,7 @@ steps:
   args:
   - '-c'
   - |
-    set -e
+    set -ex
     if [ -n "$_PR_NUMBER" ]; then
       apt-get update && apt-get install -y jq
 
@@ -87,15 +87,20 @@ steps:
       COMMENTS_URL="https://api.github.com/repos/$REPO_FULL_NAME/issues/$_PR_NUMBER/comments"
 
       # Get all comments on the PR once
+      echo "--- Getting all comments ---"
       ALL_COMMENTS=$(curl -s -H "Authorization: token $$GITHUB_TOKEN" -H "Accept: application/vnd.github.v3+json" "$$COMMENTS_URL")
+      echo "ALL_COMMENTS: $$ALL_COMMENTS"
 
       for DIR in $$TARGET_DIRS; do
         (
+          set -ex
           echo "--- Processing plan for $$DIR ---"
           cd "$$DIR"
 
           # Run plan and save output
+          echo "--- Running terragrunt plan ---"
           PLAN_OUTPUT=$(terragrunt plan -no-color 2>&1 || true)
+          echo "--- Plan output captured ---"
 
           # Extract summary and format comment
           PLAN_SUMMARY=$(echo "$$PLAN_OUTPUT" | grep -o 'Plan:.*')
@@ -109,7 +114,9 @@ steps:
             "$$COMMENT_TITLE" "$$PLAN_SUMMARY" "$$PLAN_OUTPUT" "$$COMMENT_MARKER")
 
           # Find existing comment ID
+          echo "--- Finding existing comment ---"
           EXISTING_COMMENT_ID=$(echo "$$ALL_COMMENTS" | jq --arg marker "$$COMMENT_MARKER" '.[] | select(.body | contains($marker)).id')
+          echo "EXISTING_COMMENT_ID: $$EXISTING_COMMENT_ID"
 
           JSON_PAYLOAD=$(jq -n --arg body "$$COMMENT_BODY" '{body: $body}')
 
