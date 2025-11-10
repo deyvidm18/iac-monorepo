@@ -111,11 +111,7 @@ steps:
         
         COMMENT_MARKER="<!-- terragrunt-plan-for: $$DIR -->"
         COMMENT_TITLE="### Terragrunt Plan for \`$$DIR\`"
-        COMMENT_BODY=$(printf "%s\n**%s**\n<details><summary>Full Plan Output</summary>\n\n\`\`\`
-%s
-\`\`\`
-</details>
-%s" 
+        COMMENT_BODY=$(printf '%s\n**%s**\n<details><summary>Full Plan Output</summary>\n\n```\n%s\n```\n</details>\n%s' \
           "$$COMMENT_TITLE" "$$PLAN_SUMMARY" "$$PLAN_OUTPUT" "$$COMMENT_MARKER")
 
         EXISTING_COMMENT_ID=$(echo "$$ALL_COMMENTS" | jq --arg marker "$$COMMENT_MARKER" '.[] | select(.body | contains($marker)).id')
