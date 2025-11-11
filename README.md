@@ -127,13 +127,15 @@ Once you have configured your `terragrunt.hcl`, you can proceed to deploy the in
 
 Deploying infrastructure changes in this monorepo follows a GitOps workflow:
 
-1.  **Create a Pull Request (PR):** After making your desired infrastructure changes (e.g., provisioning a new application as described in the "Provisioning a New Application" section, or modifying an existing one), commit your changes to a new branch and open a Pull Request against the `master` branch.
+1.  **Create a Draft Pull Request (PR):** After making your desired infrastructure changes (e.g., provisioning a new application as described in the "Provisioning a New Application" section, or modifying an existing one), commit your changes to a new branch and open a **Draft Pull Request** against the `master` branch.
 
-2.  **Automated Plan Generation:** Creating a Pull Request will automatically trigger a Cloud Build pipeline. This pipeline will run `terragrunt plan` for the affected infrastructure and post the plan output as a comment on your Pull Request.
+2.  **Automated Plan Generation:** Creating a Pull Request (even a draft) will automatically trigger a Cloud Build pipeline. This pipeline will run `terragrunt plan` for the affected infrastructure and post the plan output as a comment on your Pull Request.
 
-3.  **Review the Plan:** Carefully review the generated plan output in the PR comments. Ensure that the changes proposed by Terraform align with your expectations and do not introduce any unintended modifications.
+3.  **Self-Review the Plan:** Carefully review the generated plan output in the PR comments. During this initial self-review, validate that the right resources will be created, updated, or destroyed, and that the changes proposed by Terraform align with your expectations and do not introduce any unintended modifications.
 
-4.  **Admin Approval and Merge:** Once the plan has been reviewed and approved, an administrator will merge your Pull Request into the `master` branch. This merge event will trigger another Cloud Build pipeline, which will execute `terragrunt apply` to provision or update the infrastructure in the respective GCP environment.
+4.  **Mark PR as Ready for Review:** Once you have completed your self-review and are confident in the proposed changes, mark the Pull Request as "Ready for Review."
+
+5.  **Infra Admin Review and Merge:** An infrastructure administrator will then review your Pull Request. Upon their validation and approval, the PR will be merged into the `master` branch. This merge event will trigger another Cloud Build pipeline, which will execute `terragrunt apply` to provision or update the infrastructure in the respective GCP environment.
 
 ## Cloud Governance and Labeling
 
