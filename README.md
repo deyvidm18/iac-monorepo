@@ -125,16 +125,15 @@ Once you have configured your `terragrunt.hcl`, you can proceed to deploy the in
 
 ## Usage
 
-1.  **Configure your environment:** In the `live` directory, each environment has an `env.hcl` file. Update these files with your project-specific information, such as `project_id` and `environment`.
-2.  **Configure your application:** For each application you want to deploy, create a `terragrunt.hcl` file as described in the "Provisioning a New Application" section. You will need to update the `inputs` block in this file with the details for your application, such as the `team_label`.
+Deploying infrastructure changes in this monorepo follows a GitOps workflow:
 
-    **Note:** The container images are set to `us-docker.pkg.dev/cloudrun/container/hello` to allow for the creation of the infrastructure. This repository is for infrastructure only. The lifecycle of your application, including building and deploying container images, should be managed in a separate CI/CD pipeline.
+1.  **Create a Pull Request (PR):** After making your desired infrastructure changes (e.g., provisioning a new application as described in the "Provisioning a New Application" section, or modifying an existing one), commit your changes to a new branch and open a Pull Request against the `master` branch.
 
-3.  **Deploy your infrastructure:** Once you have configured your environment and application, you can deploy the infrastructure using Terragrunt:
+2.  **Automated Plan Generation:** Creating a Pull Request will automatically trigger a Cloud Build pipeline. This pipeline will run `terragrunt plan` for the affected infrastructure and post the plan output as a comment on your Pull Request.
 
-    ```bash
-    terragrunt run-all apply
-    ```
+3.  **Review the Plan:** Carefully review the generated plan output in the PR comments. Ensure that the changes proposed by Terraform align with your expectations and do not introduce any unintended modifications.
+
+4.  **Admin Approval and Merge:** Once the plan has been reviewed and approved, an administrator will merge your Pull Request into the `master` branch. This merge event will trigger another Cloud Build pipeline, which will execute `terragrunt apply` to provision or update the infrastructure in the respective GCP environment.
 
 ## Cloud Governance and Labeling
 
