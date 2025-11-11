@@ -16,5 +16,7 @@ inputs = {
   # For example, to enable the backend service and change its machine type:
   #
   # enable_cloud_run_backend = true
-  # be_machine_type          = "e2-medium"
+  # sizing = "medium"
+  # cloud_run_cpu = 4
+  # cloud_run_memory = "8Gi"
 }
