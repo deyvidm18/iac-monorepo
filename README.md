@@ -68,30 +68,74 @@ Before you can use this repository, you need to perform the following manual ste
 
     Replace `[HOST_PROJECT_ID]` with the project ID of your Shared VPC host project, and `[SERVICE_PROJECT_NUMBER]` with the project number of your service project.
 
-## Usage
+## Provisioning a New Application
 
-1.  **Configure your environment:** In the `live` directory, each environment has an `env.hcl` file. Update these files with your project-specific information, such as `project_id` and `environment`.
-2.  **Configure your application:** For each application you want to deploy, you will have a `terragrunt.hcl` file. You need to update the `inputs` block in this file with the details of your network and application.
+To provision a new application, follow these steps:
 
-    Here is an example for a `dev` environment application:
+1.  **Create a new branch:** Start by creating a new branch from `master`. It's good practice to follow a standard like `feat/my-new-app`.
+
+    ```bash
+    git checkout master
+    git pull origin master
+    git checkout -b feat/my-new-app
+    ```
+
+2.  **Create an application directory:** Create a new directory for your application under the appropriate environment in the `live` directory. For example, for a new application in the `dev` environment, you would create:
+
+    ```
+    live/dev/my-new-app
+    ```
+
+3.  **Create the `terragrunt.hcl` file:** Copy the template from `examples/terragrunt.hcl` into your new application directory (`live/dev/my-new-app/terragrunt.hcl`). This file provides a starting point for your application's configuration.
+
+    The template looks like this:
 
     ```hcl
-    inputs = {
-      name = basename(get_terragrunt_dir())
+    include "root" {
+      path = "${get_repo_root()}//root.hcl"
+      merge_strategy = "deep"
+    }
 
-      network_project_id = "your-shared-vpc-host-project-id"
-      vpc_name           = "your-shared-vpc-name"
-      subnet_name        = "dev-us-central1"
+    terraform {
+      source = "${get_repo_root()}//modules/serverless-stack-platform"
+    }
+
+    inputs = {
+      # The team responsible for the application. This is a required label.
+      team_label = "my-team"
+
+      # --- Overriding Module Variables ---
+      # You can override any variable from the serverless-stack-platform module here.
+      # For example, to enable the backend service and change its machine type:
+      #
+      # enable_cloud_run_backend = true
+      # be_machine_type          = "e2-medium"
     }
     ```
 
-    **Note:** The container images are set to `us-docker.pkg.dev/cloudrun/container/hello` to allow for the creation of the infrastructure. This repository is for infrastructure only. The lifecycle of your application, including building and deploying container images, should be managed in a separate CI/CD pipeline.
+4.  **Customize your configuration:**
 
-3.  **Deploy your infrastructure:** Once you have configured your environment and application, you can deploy the infrastructure using Terragrunt:
+    -   **Resource Naming:** The name of your application's resources will be based on the name of the directory you created (e.g., `my-new-app`). This is the default behavior. If you want to specify a different name, you can add a `name` variable to the `inputs` block.
+    -   **Team Label:** You must update the `team_label` to identify the team responsible for the application.
+    -   **Overriding Variables:** You can customize your infrastructure by overriding default variables from the `serverless-stack-platform` module within the `inputs` block. For example, you can change instance sizes, enable or disable services, or set other service-specific parameters.
 
-    ```bash
-    terragrunt run-all apply
-    ```
+    All environment-specific configurations (like project ID and network settings) are automatically inherited from the `env.hcl` file in the corresponding environment directory (e.g., `live/dev/env.hcl`). You do not need to configure them in your application's `terragrunt.hcl`.
+
+Once you have configured your `terragrunt.hcl`, you can proceed to deploy the infrastructure as described in the **Usage** section below.
+
+## Usage
+
+Deploying infrastructure changes in this monorepo follows a GitOps workflow:
+
+1.  **Create a Draft Pull Request (PR):** After making your desired infrastructure changes (e.g., provisioning a new application as described in the "Provisioning a New Application" section, or modifying an existing one), commit your changes to a new branch and open a **Draft Pull Request** against the `master` branch.
+
+2.  **Automated Plan Generation:** Creating a Pull Request (even a draft) will automatically trigger a Cloud Build pipeline. This pipeline will run `terragrunt plan` for the affected infrastructure and post the plan output as a comment on your Pull Request.
+
+3.  **Self-Review the Plan:** Carefully review the generated plan output in the PR comments. During this initial self-review, validate that the right resources will be created, updated, or destroyed, and that the changes proposed by Terraform align with your expectations and do not introduce any unintended modifications.
+
+4.  **Mark PR as Ready for Review:** Once you have completed your self-review and are confident in the proposed changes, mark the Pull Request as "Ready for Review."
+
+5.  **Infra Admin Review and Merge:** An infrastructure administrator will then review your Pull Request. Upon their validation and approval, the PR will be merged into the `master` branch. This merge event will trigger another Cloud Build pipeline, which will execute `terragrunt apply` to provision or update the infrastructure in the respective GCP environment.
 
 ## Cloud Governance and Labeling
 
