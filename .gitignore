@@ -38,7 +38,3 @@ terraform.rc
 
 # Terragrunt-specific files
 .terragrunt-cache/
-
-# Gemini-specific files
-.gemini/
-gemini_config/
