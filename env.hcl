@@ -46,4 +46,25 @@ locals {
   private_dns_zone_name = "mydomain"
   base_domain           = "demo.altostrat.com"
   iap_support_email     = "gemini-cli-dev-sa@google.com"
+
+  iam_profiles = {
+    viewer = [
+      "roles/cloudsql.viewer",
+      "roles/datastore.viewer",
+      "roles/run.viewer",
+      "roles/redis.viewer",
+      "roles/pubsub.viewer",
+      "roles/iap.viewer",
+    ]
+    developer = [
+      "roles/run.developer",
+      "roles/cloudsql.client",
+      "roles/datastore.user",
+      "roles/redis.editor",
+      "roles/pubsub.editor",
+    ]
+    web_user = [
+      "roles/iap.httpsResourceAccessor",
+    ]
+  }
 }

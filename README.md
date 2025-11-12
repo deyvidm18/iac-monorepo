@@ -320,5 +320,47 @@ This section provides a detailed overview of the default configurations for each
 | `google_project_iam_member` | `roles/datastore.user` | Grant specific roles | Grants the backend service account permission to access Firestore. |
 | `google_project_iam_member` | `roles/cloudsql.client` | Grant specific roles | Grants the backend service account permission to access Cloud SQL. |
 
+### Assigning Permissions with IAM Profiles
+
+This repository uses a profile-based approach to manage IAM permissions, providing a clear and consistent way to grant access to your GCP resources. The IAM profiles are centrally defined in the root `env.hcl` file, ensuring that all applications follow the same permission standards.
+
+There are three predefined profiles:
+
+-   **`viewer`**: Grants read-only access to the resources created by the module.
+-   **`developer`**: Grants development and modification access to the resources.
+-   **`web_user`**: Grants access to the frontend application through IAP (Identity-Aware Proxy).
+
+To assign users or groups to these profiles, you use the following variables in your application's `terragrunt.hcl` file:
+
+-   `viewer_members`: A list of members to be granted the `viewer` profile roles.
+-   `developer_members`: A list of members to be granted the `developer` profile roles.
+-   `web_user_members`: A list of members to be granted the `web_user` profile roles (for IAP access).
+
+**Example Usage in `terragrunt.hcl`:**
+
+```hcl
+inputs = {
+  viewer_members = [
+    "group:my-auditor-group@example.com",
+    "user:jane.doe@example.com",
+  ],
+  developer_members = [
+    "group:my-developer-group@example.com",
+  ],
+  web_user_members = [
+    "group:my-web-users@example.com",
+    "user:john.doe@example.com",
+  ]
+}
+```
+
+This example grants:
+- The `viewer` roles to `my-auditor-group@example.com` and `jane.doe@example.com`.
+- The `developer` roles to `my-developer-group@example.com`.
+- The `web_user` (IAP) roles to `my-web-users@example.com` and `john.doe@example.com`.
+
+This profile-based system simplifies IAM management by abstracting the specific roles into easy-to-understand profiles, making it easier to manage access at scale.
+
+
 
 

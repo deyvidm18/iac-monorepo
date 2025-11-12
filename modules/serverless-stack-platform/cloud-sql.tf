@@ -22,7 +22,7 @@ resource "google_sql_database_instance" "postgres" {
     ip_configuration {
       ipv4_enabled    = false
       private_network = data.google_compute_network.main.id
-      ssl_mode    = "ENCRYPTED_ONLY"
+      ssl_mode        = "ENCRYPTED_ONLY"
     }
     database_flags {
       name  = "cloudsql.iam_authentication"

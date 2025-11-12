@@ -50,8 +50,27 @@ resource "google_project_iam_member" "backend_cloudsql" {
 }
 
 resource "google_project_iam_member" "backend_cloudsql_iam_user" {
-  count   = var.enable_cloud_run_backend && var.enable_cloud_sql ? 1 : 0
+
+  count = var.enable_cloud_run_backend && var.enable_cloud_sql ? 1 : 0
+
   project = var.project_id
-  role    = "roles/cloudsql.instanceUser"
-  member  = "serviceAccount:${google_service_account.backend[0].email}"
+
+  role = "roles/cloudsql.instanceUser"
+
+  member = "serviceAccount:${google_service_account.backend[0].email}"
+
+}
+
+
+
+resource "google_project_iam_member" "user_group_roles" {
+
+  for_each = { for binding in local.iam_bindings : "${binding.role}-${binding.member}" => binding }
+
+  project = var.project_id
+
+  role = each.value.role
+
+  member = each.value.member
+
 }
