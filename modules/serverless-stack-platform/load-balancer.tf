@@ -40,10 +40,10 @@ resource "google_project_service_identity" "iap_sa" {
 }
 
 resource "google_iap_brand" "default" {
-  count                = var.enable_iap ? 1 : 0
-  project              = var.project_id
-  support_email        = var.iap_support_email
-  application_title    = var.name
+  count             = var.enable_iap ? 1 : 0
+  project           = var.project_id
+  support_email     = var.iap_support_email
+  application_title = var.name
 }
 
 resource "google_iap_client" "default" {
@@ -53,7 +53,7 @@ resource "google_iap_client" "default" {
 }
 
 resource "google_iap_web_iam_member" "iap_access" {
-  for_each = var.enable_iap ? toset(var.iap_members) : []
+  for_each = var.enable_iap ? toset(var.web_user_members) : []
   project  = var.project_id
   role     = "roles/iap.httpsResourceAccessor"
   member   = each.key

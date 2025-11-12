@@ -9,12 +9,12 @@ locals {
 }
 
 resource "google_cloud_run_v2_service" "frontend" {
-  count    = var.enable_cloud_run_frontend ? 1 : 0
-  name     = "${var.name}-frontend"
-  location = var.region
-  project  = var.project_id
-  ingress  = local.frontend_ingress
-  labels   = local.labels
+  count                = var.enable_cloud_run_frontend ? 1 : 0
+  name                 = "${var.name}-frontend"
+  location             = var.region
+  project              = var.project_id
+  ingress              = local.frontend_ingress
+  labels               = local.labels
   default_uri_disabled = var.disable_default_url
   template {
     service_account = google_service_account.frontend[0].email
@@ -41,12 +41,12 @@ resource "google_cloud_run_v2_service" "frontend" {
 
 
 resource "google_cloud_run_v2_service" "backend" {
-  count    = var.enable_cloud_run_backend ? 1 : 0
-  name     = "${var.name}-backend"
-  location = var.region
-  project  = var.project_id
-  ingress  = "INGRESS_TRAFFIC_INTERNAL_ONLY"
-  labels   = local.labels
+  count                = var.enable_cloud_run_backend ? 1 : 0
+  name                 = "${var.name}-backend"
+  location             = var.region
+  project              = var.project_id
+  ingress              = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+  labels               = local.labels
   default_uri_disabled = var.disable_default_url
   template {
     service_account = google_service_account.backend[0].email

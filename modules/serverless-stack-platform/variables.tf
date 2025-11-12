@@ -121,13 +121,13 @@ variable "private_ip_allocation_name" {
 // Service-Specific Overrides & Inputs
 //-------------------------------------------------
 variable "frontend_container_image" {
-  type        = string
-  default     = "us-docker.pkg.dev/cloudrun/container/hello"
+  type    = string
+  default = "us-docker.pkg.dev/cloudrun/container/hello"
 }
 
 variable "backend_container_image" {
-  type        = string
-  default     = "us-docker.pkg.dev/cloudrun/container/hello"
+  type    = string
+  default = "us-docker.pkg.dev/cloudrun/container/hello"
 }
 
 variable "load_balancer_domain" {
@@ -221,7 +221,103 @@ variable "frontend_vpc_egress" {
 }
 
 variable "backend_vpc_egress" {
-  type        = string
+
+  type = string
+
   description = "The VPC egress settings for the backend Cloud Run service."
-  default     = "ALL_TRAFFIC"
+
+  default = "ALL_TRAFFIC"
+
 }
+
+
+
+variable "web_user_members" {
+
+
+
+  description = "List of members to grant the 'web_user' profile roles (e.g., group:my-group@example.com)."
+
+
+
+  type = list(string)
+
+
+
+  default = []
+
+
+
+}
+
+
+
+
+
+
+
+variable "developer_members" {
+
+
+
+  description = "List of members to grant the 'developer' profile roles (e.g., group:my-group@example.com)."
+
+
+
+  type = list(string)
+
+
+
+  default = []
+
+
+
+}
+
+
+
+
+
+
+
+variable "viewer_members" {
+
+
+
+  description = "List of members to grant the 'viewer' profile roles (e.g., group:my-group@example.com)."
+
+
+
+  type = list(string)
+
+
+
+  default = []
+
+
+
+}
+
+
+
+
+
+
+
+variable "iam_profiles" {
+
+
+
+  description = "A map of IAM profiles (viewer, developer, user) to a list of roles."
+
+
+
+  type = map(list(string))
+
+
+
+}
+
+
+
+

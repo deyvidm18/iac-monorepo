@@ -21,10 +21,10 @@ inputs = {
   team_label        = "my-team"
   force_destroy     = true
   sizing = "medium"
-  t_shirt_sizes = {
-    medium = {
-      cloud_run_cpu = 4
+  cloud_run_cpu = 4
       cloud_run_memory = "8Gi"
+    medium = {
+    
     }
   }
 }

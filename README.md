@@ -42,32 +42,6 @@ This repository follows a clear strategy for managing default values to ensure a
 
 This separation of concerns makes it easy to manage organizational standards in a centralized location, while keeping the module's interface clean and focused on its technical inputs.
 
-### DNS Configuration
-
-The DNS configuration is also managed in the root `env.hcl` file, allowing for a centralized DNS strategy. The following variables can be set:
-
-- `dns_project_id`: The project ID of the central DNS project.
-- `public_dns_zone_name`: The name of the public managed DNS zone.
-- `private_dns_zone_name`: The name of the private managed DNS zone.
-- `base_domain`: The base domain for the applications.
-
-This allows you to manage your DNS configuration in a single place and have the module automatically create the necessary `A` records for your applications.
-
-## Prerequisites
-
-Before you can use this repository, you need to perform the following manual steps in your GCP environment:
-
-1.  **Set up a Shared VPC:** You need a host project with a Shared VPC and at least two service projects attached to it (one for `dev` and one for `prod`).
-2.  **Create Subnets:** In your Shared VPC, create a subnet for each environment (e.g., `dev-us-central1`, `prod-us-central1`).
-3.  **Enable Private Google Access:** For each of the subnets you create, you must enable **Private Google Access**. This allows resources within the subnet to reach Google APIs and services without needing an external IP address.
-4.  **Grant IAM Permissions:** For each of your service projects, you need to grant the `compute.networkUser` role to the Cloud Run service agent. This allows the service agent to use the shared VPC network. You can do this with the following `gcloud` command:
-
-    ```bash
-    gcloud projects add-iam-policy-binding [HOST_PROJECT_ID] --member=serviceAccount:service-[SERVICE_PROJECT_NUMBER]@serverless-robot-prod.iam.gserviceaccount.com --role=roles/compute.networkUser
-    ```
-
-    Replace `[HOST_PROJECT_ID]` with the project ID of your Shared VPC host project, and `[SERVICE_PROJECT_NUMBER]` with the project number of your service project.
-
 ## Provisioning a New Application
 
 To provision a new application, follow these steps:
@@ -109,7 +83,9 @@ To provision a new application, follow these steps:
       # For example, to enable the backend service and change its machine type:
       #
       # enable_cloud_run_backend = true
-      # be_machine_type          = "e2-medium"
+      #   # sizing = "medium"
+      # cloud_run_cpu = 4
+      # cloud_run_memory = "8Gi"
     }
     ```
 
@@ -343,6 +319,48 @@ This section provides a detailed overview of the default configurations for each
 | `google_project_iam_member` | `roles/pubsub.editor` | Grant specific roles | Grants the backend service account permission to access Pub/Sub. |
 | `google_project_iam_member` | `roles/datastore.user` | Grant specific roles | Grants the backend service account permission to access Firestore. |
 | `google_project_iam_member` | `roles/cloudsql.client` | Grant specific roles | Grants the backend service account permission to access Cloud SQL. |
+
+### Assigning Permissions with IAM Profiles
+
+This repository uses a profile-based approach to manage IAM permissions, providing a clear and consistent way to grant access to your GCP resources. The IAM profiles are centrally defined in the root `env.hcl` file, ensuring that all applications follow the same permission standards.
+
+There are three predefined profiles:
+
+-   **`viewer`**: Grants read-only access to the resources created by the module.
+-   **`developer`**: Grants development and modification access to the resources.
+-   **`web_user`**: Grants access to the frontend application through IAP (Identity-Aware Proxy).
+
+To assign users or groups to these profiles, you use the following variables in your application's `terragrunt.hcl` file:
+
+-   `viewer_members`: A list of members to be granted the `viewer` profile roles.
+-   `developer_members`: A list of members to be granted the `developer` profile roles.
+-   `web_user_members`: A list of members to be granted the `web_user` profile roles (for IAP access).
+
+**Example Usage in `terragrunt.hcl`:**
+
+```hcl
+inputs = {
+  viewer_members = [
+    "group:my-auditor-group@example.com",
+    "user:jane.doe@example.com",
+  ],
+  developer_members = [
+    "group:my-developer-group@example.com",
+  ],
+  web_user_members = [
+    "group:my-web-users@example.com",
+    "user:john.doe@example.com",
+  ]
+}
+```
+
+This example grants:
+- The `viewer` roles to `my-auditor-group@example.com` and `jane.doe@example.com`.
+- The `developer` roles to `my-developer-group@example.com`.
+- The `web_user` (IAP) roles to `my-web-users@example.com` and `john.doe@example.com`.
+
+This profile-based system simplifies IAM management by abstracting the specific roles into easy-to-understand profiles, making it easier to manage access at scale.
+
 
 
 
