@@ -156,6 +156,7 @@ steps:
   - |
     set -e
     if [ -n "$_PR_NUMBER" ]; then
+      apt-get update && apt-get install -y jq
       # This is a workaround to manually trigger the Gemini summary.
       # It will not trigger the automatic summary generation.
       GITHUB_TOKEN=$(cat /workspace/github_token.txt)
