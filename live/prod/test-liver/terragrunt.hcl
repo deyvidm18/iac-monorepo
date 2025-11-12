@@ -7,7 +7,7 @@ terraform {
   source = "${get_repo_root()}//modules/serverless-stack-platform"
 }
 
-inputs = {
+inputs  {
   # The team responsible for the application. This is a required label.
   team_label = "my-liver-team"
 
