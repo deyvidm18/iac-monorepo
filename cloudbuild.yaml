@@ -109,6 +109,11 @@ steps:
 
         PLAN_SUMMARY=$(echo "$$PLAN_OUTPUT" | grep -o 'Plan:.*' || echo "Plan: No changes.")
         
+        if echo "$$PLAN_OUTPUT" | grep -q "No changes. Your infrastructure matches the configuration."; then
+          echo "No changes for $$DIR. Skipping comment."
+          continue
+        fi
+
         COMMENT_MARKER="<!-- terragrunt-plan-for: $$DIR -->"
         COMMENT_TITLE="### Terragrunt Plan for \`$$DIR\`"
         COMMENT_BODY=$(printf '%s\n**%s**\n<details><summary>Full Plan Output</summary>\n\n```\n%s\n```\n</details>\n%s' \
