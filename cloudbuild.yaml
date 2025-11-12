@@ -147,5 +147,24 @@ steps:
       echo "Not a PR. Skipping comment."
     fi
 
+# Step 4: Post /gemini summary comment
+- id: 'Post /gemini summary comment'
+  name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    set -e
+    if [ -n "$_PR_NUMBER" ]; then
+      apt-get update && apt-get install -y jq
+      # This is a workaround to manually trigger the Gemini summary.
+      # It will not trigger the automatic summary generation.
+      GITHUB_TOKEN=$(cat /workspace/github_token.txt)
+      COMMENTS_URL="https://api.github.com/repos/$REPO_FULL_NAME/issues/$_PR_NUMBER/comments"
+      JSON_PAYLOAD=$(jq -n --arg body "/gemini summary" '{body: $body}')
+      curl -s -X POST -H "Authorization: token $$GITHUB_TOKEN" \
+        "$$COMMENTS_URL" -d "$$JSON_PAYLOAD"
+    fi
+
 options:
   logging: CLOUD_LOGGING_ONLY
