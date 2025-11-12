@@ -20,5 +20,5 @@ inputs = {
   # to the module's 'name' variable.
   team_label        = "my-demo-team"
   sizing = "small"
-  }
+}
 }

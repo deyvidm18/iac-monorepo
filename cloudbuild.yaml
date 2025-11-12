@@ -107,11 +107,13 @@ steps:
         PLAN_FILENAME=$(echo "$$DIR" | sed 's/[^a-zA-Z0-9]/-/g')
         PLAN_OUTPUT=$(cat "/workspace/plans/$${PLAN_FILENAME}.txt")
 
-        PLAN_SUMMARY=$(echo "$$PLAN_OUTPUT" | grep -o 'Plan:.*' || echo "Plan: No changes.")
-        
-        if echo "$$PLAN_OUTPUT" | grep -q "No changes. Your infrastructure matches the configuration."; then
+        if echo "$$PLAN_OUTPUT" | grep -q "level=error"; then
+          PLAN_SUMMARY="Error: Terragrunt plan failed."
+        elif echo "$$PLAN_OUTPUT" | grep -q "No changes. Your infrastructure matches the configuration."; then
           echo "No changes for $$DIR. Skipping comment."
           continue
+        else
+          PLAN_SUMMARY=$(echo "$$PLAN_OUTPUT" | grep -o 'Plan:.*' || echo "Plan: No changes.")
         fi
 
         COMMENT_MARKER="<!-- terragrunt-plan-for: $$DIR -->"
