@@ -52,6 +52,7 @@ steps:
     echo "Target directories to process:"
     cat /workspace/target_dirs.txt
 
+    PLAN_FAILED=false
     # Generate plans or apply changes
     for DIR in $$TARGET_DIRS;
     do
@@ -61,12 +62,20 @@ steps:
         if [ "$$ACTION" == "plan" ]; then
           # Sanitize directory name for the filename
           PLAN_FILENAME=$(echo "$$DIR" | sed 's/[^a-zA-Z0-9]/-/g')
-          terragrunt plan -no-color > "/workspace/plans/$${PLAN_FILENAME}.txt" 2>&1 || true
+          terragrunt plan -no-color > "/workspace/plans/$${PLAN_FILENAME}.txt" 2>&1
+          if [ $$? -ne 0 ]; then
+            PLAN_FAILED=true
+          fi
         else
           terragrunt apply --terragrunt-non-interactive --auto-approve
         fi
       )
     done
+
+    if [ "$$PLAN_FAILED" = true ]; then
+      echo "One or more Terragrunt plans failed. Exiting with error."
+      exit 1
+    fi
 
 # Step 2: Fetch GitHub Token
 - id: 'Fetch GitHub Token'
@@ -107,11 +116,13 @@ steps:
         PLAN_FILENAME=$(echo "$$DIR" | sed 's/[^a-zA-Z0-9]/-/g')
         PLAN_OUTPUT=$(cat "/workspace/plans/$${PLAN_FILENAME}.txt")
 
-        PLAN_SUMMARY=$(echo "$$PLAN_OUTPUT" | grep -o 'Plan:.*' || echo "Plan: No changes.")
-        
-        if echo "$$PLAN_OUTPUT" | grep -q "No changes. Your infrastructure matches the configuration."; then
+        if echo "$$PLAN_OUTPUT" | grep -q "level=error"; then
+          PLAN_SUMMARY="❌ Error: Terragrunt plan failed."
+        elif echo "$$PLAN_OUTPUT" | grep -q "No changes. Your infrastructure matches the configuration."; then
           echo "No changes for $$DIR. Skipping comment."
           continue
+        else
+          PLAN_SUMMARY=$(echo "$$PLAN_OUTPUT" | grep -o 'Plan:.*' || echo "Plan: No changes.")
         fi
 
         COMMENT_MARKER="<!-- terragrunt-plan-for: $$DIR -->"
