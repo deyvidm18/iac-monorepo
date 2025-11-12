@@ -19,7 +19,4 @@ inputs = {
   sizing = "small"
   # cloud_run_cpu = 4
   # cloud_run_memory = "8Gi"
-  viewer_members = [
-    "user:admin@dmartinezg.altostrat.com"
-  ]
 }
