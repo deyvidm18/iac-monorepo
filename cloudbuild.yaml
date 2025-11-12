@@ -108,7 +108,7 @@ steps:
         PLAN_OUTPUT=$(cat "/workspace/plans/$${PLAN_FILENAME}.txt")
 
         if echo "$$PLAN_OUTPUT" | grep -q "level=error"; then
-          PLAN_SUMMARY="Error: Terragrunt plan failed."
+          PLAN_SUMMARY="❌ Error: Terragrunt plan failed."
         elif echo "$$PLAN_OUTPUT" | grep -q "No changes. Your infrastructure matches the configuration."; then
           echo "No changes for $$DIR. Skipping comment."
           continue
