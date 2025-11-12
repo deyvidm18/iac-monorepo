@@ -18,13 +18,7 @@ terraform {
 inputs = {
   # Automatically get the directory name ("app1") and pass it
   # to the module's 'name' variable.
-  team_label        = "my-team"
-  force_destroy     = true
-  sizing = "medium"
-  cloud_run_cpu = 4
-      cloud_run_memory = "8Gi"
-    medium = {
-    
-    }
+  team_label        = "my-demo-team"
+  sizing = "small"
   }
 }
