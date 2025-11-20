@@ -193,7 +193,7 @@ steps:
       # Let's just install it again or put it in /workspace/bin in Step 1.
       
       # Better yet, let's assume we installed it in Step 1 and moved it to /workspace/bin
-      export PATH=$PATH:/workspace/bin
+      export PATH=$$PATH:/workspace/bin
 
       export INFRACOST_API_KEY=$(cat /workspace/infracost_api_key.txt)
       export GITHUB_TOKEN=$(cat /workspace/github_token.txt)
