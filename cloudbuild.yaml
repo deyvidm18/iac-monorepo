@@ -19,7 +19,7 @@ steps:
     chmod +x /usr/local/bin/terragrunt
 
     # Install Infracost
-    wget https://github.com/infracost/infracost/releases/download/v0.10.30/infracost-linux-amd64.tar.gz
+    wget https://github.com/infracost/infracost/releases/download/v0.10.42/infracost-linux-amd64.tar.gz
     tar -xvf infracost-linux-amd64.tar.gz
     mv infracost-linux-amd64 /usr/local/bin/infracost
     chmod +x /usr/local/bin/infracost
@@ -210,7 +210,7 @@ steps:
         echo "No Infracost files found."
       else
         echo "Posting Infracost comment..."
-        infracost comment github --repo $REPO_FULL_NAME --pull-request $_PR_NUMBER --path "/workspace/plans/*_infracost.json" --behavior update
+        infracost comment github --repo $REPO_FULL_NAME --pull-request $_PR_NUMBER --path "/workspace/plans/*_infracost.json" --behavior update --github-token $$GITHUB_TOKEN
       fi
     fi
 
