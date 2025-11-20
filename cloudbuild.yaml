@@ -18,6 +18,16 @@ steps:
     mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
     chmod +x /usr/local/bin/terragrunt
 
+    # Install Infracost
+    wget https://github.com/infracost/infracost/releases/download/v0.10.30/infracost-linux-amd64.tar.gz
+    tar -xvf infracost-linux-amd64.tar.gz
+    mv infracost-linux-amd64 /usr/local/bin/infracost
+    chmod +x /usr/local/bin/infracost
+    
+    # Persist binaries to /workspace/bin for subsequent steps
+    mkdir -p /workspace/bin
+    cp /usr/local/bin/infracost /workspace/bin/
+
     # Create a directory for plan files
     mkdir -p /workspace/plans
 
@@ -62,9 +72,22 @@ steps:
         if [ "$$ACTION" == "plan" ]; then
           # Sanitize directory name for the filename
           PLAN_FILENAME=$(echo "$$DIR" | sed 's/[^a-zA-Z0-9]/-/g')
-          terragrunt plan -no-color > "/workspace/plans/$${PLAN_FILENAME}.txt" 2>&1
+          
+          # Generate binary plan
+          terragrunt plan -out=plan.binary -no-color > /dev/null 2>&1
           if [ $$? -ne 0 ]; then
             PLAN_FAILED=true
+            # Capture error output if plan failed
+            terragrunt plan -no-color > "/workspace/plans/$${PLAN_FILENAME}.txt" 2>&1
+          else
+            # Convert to text for existing logic
+            terragrunt show -no-color plan.binary > "/workspace/plans/$${PLAN_FILENAME}.txt"
+            
+            # Convert to JSON for Infracost
+            terragrunt show -json plan.binary > "/workspace/plans/$${PLAN_FILENAME}.json"
+            
+            # Run Infracost breakdown
+            infracost breakdown --path "/workspace/plans/$${PLAN_FILENAME}.json" --format json --out-file "/workspace/plans/$${PLAN_FILENAME}_infracost.json" || true
           fi
         else
           terragrunt apply --terragrunt-non-interactive --auto-approve
@@ -87,6 +110,9 @@ steps:
     if [ -n "$_PR_NUMBER" ]; then
       echo "Fetching GitHub token..."
       gcloud secrets versions access latest --secret=github-token --project=$PROJECT_ID --format='get(payload.data)' | tr '_-' '/+' | base64 -d > /workspace/github_token.txt
+      
+      echo "Fetching Infracost API key..."
+      gcloud secrets versions access latest --secret=infracost-api-key --project=$PROJECT_ID --format='get(payload.data)' | tr '_-' '/+' | base64 -d > /workspace/infracost_api_key.txt
     fi
 
 # Step 3: Post Plan to GitHub PR
@@ -147,7 +173,43 @@ steps:
       echo "Not a PR. Skipping comment."
     fi
 
-# Step 4: Post /gemini summary comment
+# Step 4: Post Infracost Comment
+- id: 'Post Infracost Comment'
+  name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    set -e
+    if [ -n "$_PR_NUMBER" ]; then
+      if [ ! -s /workspace/target_dirs.txt ]; then
+        echo "No target directories to process. Skipping Infracost comment."
+        exit 0
+      fi
+
+      # Install Infracost (re-installing here to be safe, or could rely on previous step if image persisted, but standard cloud builders don't persist /usr/local/bin across steps unless using a custom image or workspace)
+      # Actually, /workspace is persisted. /usr/local/bin is NOT.
+      # So we need to reinstall or use the one we installed in Step 1 if we moved it to /workspace.
+      # Let's just install it again or put it in /workspace/bin in Step 1.
+      
+      # Better yet, let's assume we installed it in Step 1 and moved it to /workspace/bin
+      export PATH=$PATH:/workspace/bin
+
+      export INFRACOST_API_KEY=$(cat /workspace/infracost_api_key.txt)
+      export GITHUB_TOKEN=$(cat /workspace/github_token.txt)
+
+      # Find all infracost JSON files
+      INFRACOST_FILES=$(find /workspace/plans -name "*_infracost.json")
+      
+      if [ -z "$$INFRACOST_FILES" ]; then
+        echo "No Infracost files found."
+      else
+        echo "Posting Infracost comment..."
+        infracost comment github --repo $REPO_FULL_NAME --pull-request $_PR_NUMBER --path "/workspace/plans/*_infracost.json" --behavior update
+      fi
+    fi
+
+# Step 5: Post /gemini summary comment
 - id: 'Post /gemini summary comment'
   name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
