@@ -35,6 +35,11 @@ steps:
       ACTION="plan"
       git fetch --unshallow
       CHANGED_FILES=$(git diff --name-only origin/$_BASE_BRANCH...origin/$_HEAD_BRANCH)
+      
+      # Fetch Infracost API key for breakdown
+      echo "Fetching Infracost API key..."
+      gcloud secrets versions access latest --secret=infracost-api-key --project=$PROJECT_ID --format='get(payload.data)' | tr '_-' '/+' | base64 -d > /workspace/infracost_api_key.txt
+      export INFRACOST_API_KEY=$(cat /workspace/infracost_api_key.txt)
     else
       ACTION="apply"
       git fetch --depth=2
