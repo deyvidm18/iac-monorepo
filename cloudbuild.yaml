@@ -18,6 +18,16 @@ steps:
     mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
     chmod +x /usr/local/bin/terragrunt
 
+    # Install Infracost
+    wget https://github.com/infracost/infracost/releases/download/v0.10.42/infracost-linux-amd64.tar.gz
+    tar -xvf infracost-linux-amd64.tar.gz
+    mv infracost-linux-amd64 /usr/local/bin/infracost
+    chmod +x /usr/local/bin/infracost
+    
+    # Persist binaries to /workspace/bin for subsequent steps
+    mkdir -p /workspace/bin
+    cp /usr/local/bin/infracost /workspace/bin/
+
     # Create a directory for plan files
     mkdir -p /workspace/plans
 
@@ -25,6 +35,11 @@ steps:
       ACTION="plan"
       git fetch --unshallow
       CHANGED_FILES=$(git diff --name-only origin/$_BASE_BRANCH...origin/$_HEAD_BRANCH)
+      
+      # Fetch Infracost API key for breakdown
+      echo "Fetching Infracost API key..."
+      gcloud secrets versions access latest --secret=infracost-api-key --project=$PROJECT_ID --format='get(payload.data)' | tr '_-' '/+' | base64 -d > /workspace/infracost_api_key.txt
+      export INFRACOST_API_KEY=$(cat /workspace/infracost_api_key.txt)
     else
       ACTION="apply"
       git fetch --depth=2
@@ -43,14 +58,13 @@ steps:
     fi
 
     if [ -z "$$TARGET_DIRS" ]; then
-      echo "No infrastructure changes detected. Exiting."
+      echo "No infrastructure changes detected."
       touch /workspace/target_dirs.txt # Create empty file to signal no changes
-      exit 0
+    else
+      echo "$$TARGET_DIRS" > /workspace/target_dirs.txt
+      echo "Target directories to process:"
+      cat /workspace/target_dirs.txt
     fi
-    
-    echo "$$TARGET_DIRS" > /workspace/target_dirs.txt
-    echo "Target directories to process:"
-    cat /workspace/target_dirs.txt
 
     PLAN_FAILED=false
     # Generate plans or apply changes
@@ -62,9 +76,22 @@ steps:
         if [ "$$ACTION" == "plan" ]; then
           # Sanitize directory name for the filename
           PLAN_FILENAME=$(echo "$$DIR" | sed 's/[^a-zA-Z0-9]/-/g')
-          terragrunt plan -no-color > "/workspace/plans/$${PLAN_FILENAME}.txt" 2>&1
+          
+          # Generate binary plan
+          terragrunt plan -out=plan.binary -no-color > /dev/null 2>&1
           if [ $$? -ne 0 ]; then
             PLAN_FAILED=true
+            # Capture error output if plan failed
+            terragrunt plan -no-color > "/workspace/plans/$${PLAN_FILENAME}.txt" 2>&1
+          else
+            # Convert to text for existing logic
+            terragrunt show -no-color plan.binary > "/workspace/plans/$${PLAN_FILENAME}.txt"
+            
+            # Convert to JSON for Infracost
+            terragrunt show -json plan.binary > "/workspace/plans/$${PLAN_FILENAME}.json"
+            
+            # Run Infracost breakdown
+            infracost breakdown --path "/workspace/plans/$${PLAN_FILENAME}.json" --format json --out-file "/workspace/plans/$${PLAN_FILENAME}_infracost.json" || true
           fi
         else
           terragrunt apply --terragrunt-non-interactive --auto-approve
@@ -87,6 +114,9 @@ steps:
     if [ -n "$_PR_NUMBER" ]; then
       echo "Fetching GitHub token..."
       gcloud secrets versions access latest --secret=github-token --project=$PROJECT_ID --format='get(payload.data)' | tr '_-' '/+' | base64 -d > /workspace/github_token.txt
+      
+      echo "Fetching Infracost API key..."
+      gcloud secrets versions access latest --secret=infracost-api-key --project=$PROJECT_ID --format='get(payload.data)' | tr '_-' '/+' | base64 -d > /workspace/infracost_api_key.txt
     fi
 
 # Step 3: Post Plan to GitHub PR
@@ -99,8 +129,7 @@ steps:
     set -e
     if [ -n "$_PR_NUMBER" ]; then
       if [ ! -s /workspace/target_dirs.txt ]; then
-        echo "No target directories to process. Skipping comment."
-        exit 0
+        echo "No target directories to process. Proceeding to check for stale comments."
       fi
 
       apt-get update && apt-get install -y jq
@@ -119,8 +148,7 @@ steps:
         if echo "$$PLAN_OUTPUT" | grep -q "level=error"; then
           PLAN_SUMMARY="❌ Error: Terragrunt plan failed."
         elif echo "$$PLAN_OUTPUT" | grep -q "No changes. Your infrastructure matches the configuration."; then
-          echo "No changes for $$DIR. Skipping comment."
-          continue
+          PLAN_SUMMARY="No changes. Your infrastructure matches the configuration."
         else
           PLAN_SUMMARY=$(echo "$$PLAN_OUTPUT" | grep -o 'Plan:.*' || echo "Plan: No changes.")
         fi
@@ -143,12 +171,44 @@ steps:
             "$$COMMENTS_URL" -d "$$JSON_PAYLOAD"
         fi
       done
+
+      # Handle stale comments (directories that were previously modified but now are not)
+      # We need to find comments that have our marker but are NOT in TARGET_DIRS
+      
+      # Construct a list of currently processed directories for easy checking
+      # Add spaces around to match exact words
+      PROCESSED_DIRS_STR=" $$(echo $$TARGET_DIRS | tr '\n' ' ') "
+
+      echo "$$ALL_COMMENTS" | jq -c '.[] | select(.body | contains("<!-- terragrunt-plan-for:"))' | while read -r comment; do
+        COMMENT_ID=$(echo "$$comment" | jq -r .id)
+        COMMENT_BODY=$(echo "$$comment" | jq -r .body)
+        
+        # Extract directory from marker
+        # Marker format: <!-- terragrunt-plan-for: live/dev/demo-app -->
+        OLD_DIR=$(echo "$$COMMENT_BODY" | grep -o '<!-- terragrunt-plan-for: .* -->' | sed 's/<!-- terragrunt-plan-for: //; s/ -->//')
+        
+        # Check if this directory is in the current TARGET_DIRS
+        if [[ "$$PROCESSED_DIRS_STR" != *" $$OLD_DIR "* ]]; then
+          echo "Found stale comment $$COMMENT_ID for $$OLD_DIR. Updating to 'No changes'."
+          
+          PLAN_SUMMARY="No changes. Your infrastructure matches the configuration."
+          COMMENT_MARKER="<!-- terragrunt-plan-for: $$OLD_DIR -->"
+          COMMENT_TITLE="### Terragrunt Plan for \`$$OLD_DIR\`"
+          # We don't have a plan output, so we just show the summary
+          COMMENT_BODY=$(printf '%s\n**%s**\n%s' "$$COMMENT_TITLE" "$$PLAN_SUMMARY" "$$COMMENT_MARKER")
+          
+          JSON_PAYLOAD=$(jq -n --arg body "$$COMMENT_BODY" '{body: $body}')
+          
+          curl -s -X PATCH -H "Authorization: token $$GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO_FULL_NAME/issues/comments/$$COMMENT_ID" -d "$$JSON_PAYLOAD"
+        fi
+      done
     else
       echo "Not a PR. Skipping comment."
     fi
 
-# Step 4: Post /gemini summary comment
-- id: 'Post /gemini summary comment'
+# Step 4: Post Infracost Comment
+- id: 'Post Infracost Comment'
   name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
@@ -156,15 +216,31 @@ steps:
   - |
     set -e
     if [ -n "$_PR_NUMBER" ]; then
-      apt-get update && apt-get install -y jq
-      # This is a workaround to manually trigger the Gemini summary.
-      # It will not trigger the automatic summary generation.
-      GITHUB_TOKEN=$(cat /workspace/github_token.txt)
-      COMMENTS_URL="https://api.github.com/repos/$REPO_FULL_NAME/issues/$_PR_NUMBER/comments"
-      JSON_PAYLOAD=$(jq -n --arg body "/gemini summary" '{body: $body}')
-      curl -s -X POST -H "Authorization: token $$GITHUB_TOKEN" \
-        "$$COMMENTS_URL" -d "$$JSON_PAYLOAD"
-    fi
+      if [ ! -s /workspace/target_dirs.txt ]; then
+        echo "No target directories to process. Skipping Infracost comment."
+        exit 0
+      fi
 
+      # Install Infracost (re-installing here to be safe, or could rely on previous step if image persisted, but standard cloud builders don't persist /usr/local/bin across steps unless using a custom image or workspace)
+      # Actually, /workspace is persisted. /usr/local/bin is NOT.
+      # So we need to reinstall or use the one we installed in Step 1 if we moved it to /workspace.
+      # Let's just install it again or put it in /workspace/bin in Step 1.
+      
+      # Better yet, let's assume we installed it in Step 1 and moved it to /workspace/bin
+      export PATH=$$PATH:/workspace/bin
+
+      export INFRACOST_API_KEY=$(cat /workspace/infracost_api_key.txt)
+      export GITHUB_TOKEN=$(cat /workspace/github_token.txt)
+
+      # Find all infracost JSON files
+      INFRACOST_FILES=$(find /workspace/plans -name "*_infracost.json")
+      
+      if [ -z "$$INFRACOST_FILES" ]; then
+        echo "No Infracost files found."
+      else
+        echo "Posting Infracost comment..."
+        infracost comment github --repo $REPO_FULL_NAME --pull-request $_PR_NUMBER --path "/workspace/plans/*_infracost.json" --behavior update --github-token $$GITHUB_TOKEN
+      fi
+    fi
 options:
   logging: CLOUD_LOGGING_ONLY
