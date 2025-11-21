@@ -232,94 +232,81 @@ steps:
       pip install google-generativeai requests
 
       # Create a python script to generate summary and post comment
-      cat <<EOF > /workspace/gemini_summary.py
-import os
-import glob
-import google.generativeai as genai
-import requests
-import json
+      # Create a python script to generate summary and post comment
+      cat <<EOF | sed 's/^      //' > /workspace/gemini_summary.py
+      import os
+      import glob
+      import google.generativeai as genai
+      import requests
+      import json
 
-# Configure Gemini
-# Note: This assumes ADC is available or API key is provided. 
-# Cloud Build uses the service account, which should have Vertex AI User role.
-# If using the public Gemini API, we need an API key.
-# Given the context of "gemini CLI", it might be the Vertex AI one or the public one.
-# Let's assume Vertex AI via ADC for now as it's standard on GCP.
-# However, the user mentioned "gemini CLI" which usually refers to the one installed via pip or similar.
-# Let's use the python library which is easier to handle in a script than installing a CLI tool if we can.
-# But the user explicitly asked for "using gemini CLI".
-# Let's try to use the python library to simulate the CLI behavior for better control, 
-# or actually install the CLI if that's what they really want.
-# "gemini" command usually comes from some package.
-# Let's stick to Python for robustness in CI/CD, effectively doing what the CLI does.
+      # Configure Gemini
+      # Note: This assumes ADC is available or API key is provided. 
+      # Cloud Build uses the service account, which should have Vertex AI User role.
+      
+      PROJECT_ID = os.environ.get("PROJECT_ID")
+      LOCATION = "us-central1" # Default
+      genai.configure(platform="GOOGLE_CLOUD_VERTEX_AI", project=PROJECT_ID, location=LOCATION)
 
-# Actually, let's check if we can just use the python library to generate the content.
-# It is cleaner.
+      model = genai.GenerativeModel('gemini-pro')
 
-PROJECT_ID = os.environ.get("PROJECT_ID")
-LOCATION = "us-central1" # Default
-genai.configure(platform="GOOGLE_CLOUD_VERTEX_AI", project=PROJECT_ID, location=LOCATION)
+      # Gather plans
+      plans = []
+      for plan_file in glob.glob("/workspace/plans/*.txt"):
+          with open(plan_file, 'r') as f:
+              content = f.read()
+              plans.append(f"Plan for {os.path.basename(plan_file)}:\n{content}\n")
 
-model = genai.GenerativeModel('gemini-pro')
+      if not plans:
+          print("No plans found.")
+          exit(0)
 
-# Gather plans
-plans = []
-for plan_file in glob.glob("/workspace/plans/*.txt"):
-    with open(plan_file, 'r') as f:
-        content = f.read()
-        plans.append(f"Plan for {os.path.basename(plan_file)}:\n{content}\n")
+      prompt = "Please summarize the following Terraform plans. Highlight the key changes, additions, and deletions for each module. Be concise.\n\n" + "\n".join(plans)
 
-if not plans:
-    print("No plans found.")
-    exit(0)
+      try:
+          response = model.generate_content(prompt)
+          summary = response.text
+      except Exception as e:
+          print(f"Error generating summary: {e}")
+          summary = "Failed to generate summary."
 
-prompt = "Please summarize the following Terraform plans. Highlight the key changes, additions, and deletions for each module. Be concise.\n\n" + "\n".join(plans)
+      # Post to GitHub
+      GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+      REPO_FULL_NAME = os.environ.get("REPO_FULL_NAME")
+      PR_NUMBER = os.environ.get("_PR_NUMBER")
+      COMMENTS_URL = f"https://api.github.com/repos/{REPO_FULL_NAME}/issues/{PR_NUMBER}/comments"
 
-try:
-    response = model.generate_content(prompt)
-    summary = response.text
-except Exception as e:
-    print(f"Error generating summary: {e}")
-    summary = "Failed to generate summary."
+      comment_marker = "<!-- gemini-summary-comment -->"
+      comment_body = f"### 🤖 Gemini Infrastructure Summary\n\n{summary}\n\n{comment_marker}"
 
-# Post to GitHub
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-REPO_FULL_NAME = os.environ.get("REPO_FULL_NAME")
-PR_NUMBER = os.environ.get("_PR_NUMBER")
-COMMENTS_URL = f"https://api.github.com/repos/{REPO_FULL_NAME}/issues/{PR_NUMBER}/comments"
+      headers = {
+          "Authorization": f"token {GITHUB_TOKEN}",
+          "Accept": "application/vnd.github.v3+json"
+      }
 
-comment_marker = "<!-- gemini-summary-comment -->"
-comment_body = f"### 🤖 Gemini Infrastructure Summary\n\n{summary}\n\n{comment_marker}"
+      # Check for existing comment
+      existing_comment_id = None
+      try:
+          resp = requests.get(COMMENTS_URL, headers=headers)
+          resp.raise_for_status()
+          comments = resp.json()
+          for comment in comments:
+              if comment_marker in comment.get("body", ""):
+                  existing_comment_id = comment["id"]
+                  break
+      except Exception as e:
+          print(f"Error fetching comments: {e}")
 
-headers = {
-    "Authorization": f"token {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github.v3+json"
-}
+      payload = {"body": comment_body}
 
-# Check for existing comment
-existing_comment_id = None
-try:
-    resp = requests.get(COMMENTS_URL, headers=headers)
-    resp.raise_for_status()
-    comments = resp.json()
-    for comment in comments:
-        if comment_marker in comment.get("body", ""):
-            existing_comment_id = comment["id"]
-            break
-except Exception as e:
-    print(f"Error fetching comments: {e}")
-
-payload = {"body": comment_body}
-
-if existing_comment_id:
-    print(f"Updating existing comment {existing_comment_id}")
-    patch_url = f"https://api.github.com/repos/{REPO_FULL_NAME}/issues/comments/{existing_comment_id}"
-    requests.patch(patch_url, headers=headers, json=payload)
-else:
-    print("Creating new comment")
-    requests.post(COMMENTS_URL, headers=headers, json=payload)
-
-EOF
+      if existing_comment_id:
+          print(f"Updating existing comment {existing_comment_id}")
+          patch_url = f"https://api.github.com/repos/{REPO_FULL_NAME}/issues/comments/{existing_comment_id}"
+          requests.patch(patch_url, headers=headers, json=payload)
+      else:
+          print("Creating new comment")
+          requests.post(COMMENTS_URL, headers=headers, json=payload)
+      EOF
 
       export PROJECT_ID=$PROJECT_ID
       export GITHUB_TOKEN=$(cat /workspace/github_token.txt)
