@@ -20,5 +20,4 @@ inputs = {
   # to the module's 'name' variable.
   team_label        = "finops-team"
   sizing            = "large"
-  developer_members = ["user:admin@dmartinezg.altostrat.com"]
 }
