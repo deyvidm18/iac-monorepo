@@ -212,3 +212,5 @@ steps:
         infracost comment github --repo $REPO_FULL_NAME --pull-request $_PR_NUMBER --path "/workspace/plans/*_infracost.json" --behavior update --github-token $$GITHUB_TOKEN
       fi
     fi
+options:
+  logging: CLOUD_LOGGING_ONLY
