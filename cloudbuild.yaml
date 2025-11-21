@@ -150,8 +150,7 @@ steps:
         if echo "$$PLAN_OUTPUT" | grep -q "level=error"; then
           PLAN_SUMMARY="❌ Error: Terragrunt plan failed."
         elif echo "$$PLAN_OUTPUT" | grep -q "No changes. Your infrastructure matches the configuration."; then
-          echo "No changes for $$DIR. Skipping comment."
-          continue
+          PLAN_SUMMARY="No changes. Your infrastructure matches the configuration."
         else
           PLAN_SUMMARY=$(echo "$$PLAN_OUTPUT" | grep -o 'Plan:.*' || echo "Plan: No changes.")
         fi
@@ -215,22 +214,119 @@ steps:
     fi
 
 # Step 5: Post /gemini summary comment
-- id: 'Post /gemini summary comment'
-  name: 'gcr.io/cloud-builders/gcloud'
+# Step 5: Post Gemini Summary
+- id: 'Post Gemini Summary'
+  name: 'python:3.9-slim'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
     set -e
     if [ -n "$_PR_NUMBER" ]; then
-      apt-get update && apt-get install -y jq
-      # This is a workaround to manually trigger the Gemini summary.
-      # It will not trigger the automatic summary generation.
-      GITHUB_TOKEN=$(cat /workspace/github_token.txt)
-      COMMENTS_URL="https://api.github.com/repos/$REPO_FULL_NAME/issues/$_PR_NUMBER/comments"
-      JSON_PAYLOAD=$(jq -n --arg body "/gemini summary" '{body: $body}')
-      curl -s -X POST -H "Authorization: token $$GITHUB_TOKEN" \
-        "$$COMMENTS_URL" -d "$$JSON_PAYLOAD"
+      if [ ! -s /workspace/target_dirs.txt ]; then
+        echo "No target directories to process. Skipping summary."
+        exit 0
+      fi
+
+      # Install dependencies
+      pip install google-generativeai requests
+
+      # Create a python script to generate summary and post comment
+      cat <<EOF > /workspace/gemini_summary.py
+import os
+import glob
+import google.generativeai as genai
+import requests
+import json
+
+# Configure Gemini
+# Note: This assumes ADC is available or API key is provided. 
+# Cloud Build uses the service account, which should have Vertex AI User role.
+# If using the public Gemini API, we need an API key.
+# Given the context of "gemini CLI", it might be the Vertex AI one or the public one.
+# Let's assume Vertex AI via ADC for now as it's standard on GCP.
+# However, the user mentioned "gemini CLI" which usually refers to the one installed via pip or similar.
+# Let's use the python library which is easier to handle in a script than installing a CLI tool if we can.
+# But the user explicitly asked for "using gemini CLI".
+# Let's try to use the python library to simulate the CLI behavior for better control, 
+# or actually install the CLI if that's what they really want.
+# "gemini" command usually comes from some package.
+# Let's stick to Python for robustness in CI/CD, effectively doing what the CLI does.
+
+# Actually, let's check if we can just use the python library to generate the content.
+# It is cleaner.
+
+PROJECT_ID = os.environ.get("PROJECT_ID")
+LOCATION = "us-central1" # Default
+genai.configure(platform="GOOGLE_CLOUD_VERTEX_AI", project=PROJECT_ID, location=LOCATION)
+
+model = genai.GenerativeModel('gemini-pro')
+
+# Gather plans
+plans = []
+for plan_file in glob.glob("/workspace/plans/*.txt"):
+    with open(plan_file, 'r') as f:
+        content = f.read()
+        plans.append(f"Plan for {os.path.basename(plan_file)}:\n{content}\n")
+
+if not plans:
+    print("No plans found.")
+    exit(0)
+
+prompt = "Please summarize the following Terraform plans. Highlight the key changes, additions, and deletions for each module. Be concise.\n\n" + "\n".join(plans)
+
+try:
+    response = model.generate_content(prompt)
+    summary = response.text
+except Exception as e:
+    print(f"Error generating summary: {e}")
+    summary = "Failed to generate summary."
+
+# Post to GitHub
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+REPO_FULL_NAME = os.environ.get("REPO_FULL_NAME")
+PR_NUMBER = os.environ.get("_PR_NUMBER")
+COMMENTS_URL = f"https://api.github.com/repos/{REPO_FULL_NAME}/issues/{PR_NUMBER}/comments"
+
+comment_marker = "<!-- gemini-summary-comment -->"
+comment_body = f"### 🤖 Gemini Infrastructure Summary\n\n{summary}\n\n{comment_marker}"
+
+headers = {
+    "Authorization": f"token {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github.v3+json"
+}
+
+# Check for existing comment
+existing_comment_id = None
+try:
+    resp = requests.get(COMMENTS_URL, headers=headers)
+    resp.raise_for_status()
+    comments = resp.json()
+    for comment in comments:
+        if comment_marker in comment.get("body", ""):
+            existing_comment_id = comment["id"]
+            break
+except Exception as e:
+    print(f"Error fetching comments: {e}")
+
+payload = {"body": comment_body}
+
+if existing_comment_id:
+    print(f"Updating existing comment {existing_comment_id}")
+    patch_url = f"https://api.github.com/repos/{REPO_FULL_NAME}/issues/comments/{existing_comment_id}"
+    requests.patch(patch_url, headers=headers, json=payload)
+else:
+    print("Creating new comment")
+    requests.post(COMMENTS_URL, headers=headers, json=payload)
+
+EOF
+
+      export PROJECT_ID=$PROJECT_ID
+      export GITHUB_TOKEN=$(cat /workspace/github_token.txt)
+      export REPO_FULL_NAME=$REPO_FULL_NAME
+      export _PR_NUMBER=$_PR_NUMBER
+      
+      python3 /workspace/gemini_summary.py
     fi
 
 options:
