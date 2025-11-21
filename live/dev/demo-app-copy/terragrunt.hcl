@@ -19,6 +19,6 @@ inputs = {
   # Automatically get the directory name ("app1") and pass it
   # to the module's 'name' variable.
   team_label        = "my-demo-team"
-  sizing            = "small"
+  sizing            = "medium"
   developer_members = ["user:admin@dmartinezg.altostrat.com"]
 }
