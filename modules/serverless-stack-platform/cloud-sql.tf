@@ -18,6 +18,7 @@ resource "google_sql_database_instance" "postgres" {
 
   settings {
     tier              = local.config.cloudsql_tier
+    edition           = local.config.cloudsql_edition
     availability_type = local.config.cloudsql_ha ? "REGIONAL" : "ZONAL"
     ip_configuration {
       ipv4_enabled    = false
@@ -28,6 +29,10 @@ resource "google_sql_database_instance" "postgres" {
       name  = "cloudsql.iam_authentication"
       value = "on"
     }
+    data_cache_config {
+      data_cache_enabled = local.config.cloudsql_data_cache
+    }
+    disk_size   = local.config.cloudsql_disk_size
     user_labels = local.labels
   }
 

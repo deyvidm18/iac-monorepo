@@ -22,6 +22,7 @@ resource "google_cloud_run_v2_service" "frontend" {
       min_instance_count = local.config.cloud_run_min_instances
       max_instance_count = local.config.cloud_run_max_instances
     }
+    max_instance_request_concurrency = local.config.cloud_run_concurrency
     containers {
       image = var.frontend_container_image
       resources {
@@ -54,6 +55,7 @@ resource "google_cloud_run_v2_service" "backend" {
       min_instance_count = local.config.cloud_run_min_instances
       max_instance_count = local.config.cloud_run_max_instances
     }
+    max_instance_request_concurrency = local.config.cloud_run_concurrency
     containers {
       image = var.backend_container_image
       resources {

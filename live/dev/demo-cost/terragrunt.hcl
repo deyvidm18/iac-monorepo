@@ -18,6 +18,6 @@ terraform {
 inputs = {
   # Automatically get the directory name ("app1") and pass it
   # to the module's 'name' variable.
-  team_label        = "finops-team"
+  team_label        = "finops-team-2"
   sizing            = "large"
 }
