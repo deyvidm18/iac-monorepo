@@ -50,12 +50,7 @@ steps:
     echo "Changed files: $$CHANGED_FILES"
 
     # Detect Target Directories
-    if echo "$$CHANGED_FILES" | grep -q "modules/" || echo "$$CHANGED_FILES" | grep -q "env.hcl"; then
-      echo "Shared module or environment default changed, targeting ALL applications."
-      TARGET_DIRS=$(find live -type f -name 'terragrunt.hcl' | xargs dirname)
-    else
-      TARGET_DIRS=$(echo "$$CHANGED_FILES" | grep -o 'live/[^/]*/[^/]*' | sort | uniq)
-    fi
+    TARGET_DIRS=$(echo "$$CHANGED_FILES" | grep -o 'live/[^/]*/[^/]*' | sort | uniq)
 
     if [ -z "$$TARGET_DIRS" ]; then
       echo "No infrastructure changes detected."
