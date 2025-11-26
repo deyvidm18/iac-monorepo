@@ -76,7 +76,7 @@ steps:
           if ! terragrunt plan -out=plan.binary -no-color > /dev/null 2>&1; then
             PLAN_FAILED=true
             # Capture error output if plan failed
-            terragrunt plan -no-color > "/workspace/plans/$${PLAN_FILENAME}.txt" 2>&1
+            terragrunt plan -no-color > "/workspace/plans/$${PLAN_FILENAME}.txt" 2>&1 || true
             cat "/workspace/plans/$${PLAN_FILENAME}.txt" # Print to stdout for debugging
             touch /workspace/plan_failed
           else
