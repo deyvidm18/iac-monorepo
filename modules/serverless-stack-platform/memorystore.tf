@@ -3,6 +3,7 @@ resource "google_redis_instance" "cache" {
   name               = "${var.name}-redis"
   tier               = local.config.memorystore_tier
   memory_size_gb     = local.config.memorystore_size_gb
+  replica_count      = local.config.memorystore_replica_count
   labels             = local.labels
   location_id        = var.zone
   project            = var.project_id

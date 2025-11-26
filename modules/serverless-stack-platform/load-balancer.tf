@@ -23,6 +23,7 @@ resource "google_compute_backend_service" "frontend_backend" {
   protocol              = "HTTP"
   load_balancing_scheme = "EXTERNAL_MANAGED"
   backend { group = google_compute_region_network_endpoint_group.frontend_neg[0].id }
+  enable_cdn = var.enable_cdn
   dynamic "iap" {
     for_each = var.enable_iap ? [1] : []
     content {

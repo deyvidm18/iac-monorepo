@@ -58,6 +58,20 @@ variable "enable_iap" {
   description = "Controls creation of IAP and its binding to the LB."
 }
 
+variable "enable_cdn" {
+  type        = bool
+  default     = true
+  description = "Controls creation of Cloud CDN."
+}
+
+variable "enable_secret_manager" {
+  type        = bool
+  default     = true
+  description = "Controls creation of Secret Manager."
+}
+
+
+
 //-------------------------------------------------
 // T-Shirt Sizing Configuration
 //-------------------------------------------------
@@ -76,10 +90,16 @@ variable "t_shirt_sizes" {
     cloud_run_memory        = string
     cloud_run_min_instances = number
     cloud_run_max_instances = number
+    cloud_run_concurrency   = number
     cloudsql_tier           = string
+    cloudsql_edition        = string
     cloudsql_ha             = bool
+    cloudsql_data_cache     = bool
+    cloudsql_disk_size      = number
     memorystore_size_gb     = number
     memorystore_tier        = string // BASIC or STANDARD_HA
+    memorystore_replica_count = number
+    pubsub_retention        = string
   }))
 }
 
