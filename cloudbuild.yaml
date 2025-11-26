@@ -73,8 +73,7 @@ steps:
           PLAN_FILENAME=$(echo "$$DIR" | sed 's/[^a-zA-Z0-9]/-/g')
           
           # Generate binary plan
-          terragrunt plan -out=plan.binary -no-color > /dev/null 2>&1
-          if [ $$? -ne 0 ]; then
+          if ! terragrunt plan -out=plan.binary -no-color > /dev/null 2>&1; then
             PLAN_FAILED=true
             # Capture error output if plan failed
             terragrunt plan -no-color > "/workspace/plans/$${PLAN_FILENAME}.txt" 2>&1
