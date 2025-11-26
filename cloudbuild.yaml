@@ -78,6 +78,8 @@ steps:
             PLAN_FAILED=true
             # Capture error output if plan failed
             terragrunt plan -no-color > "/workspace/plans/$${PLAN_FILENAME}.txt" 2>&1
+            cat "/workspace/plans/$${PLAN_FILENAME}.txt" # Print to stdout for debugging
+            touch /workspace/plan_failed
           else
             # Convert to text for existing logic
             terragrunt show -no-color plan.binary > "/workspace/plans/$${PLAN_FILENAME}.txt"
@@ -94,10 +96,11 @@ steps:
       )
     done
 
-    if [ "$$PLAN_FAILED" = true ]; then
-      echo "One or more Terragrunt plans failed. Exiting with error."
-      exit 1
-    fi
+    # Do not exit here, let Step 3 post the results first
+    # if [ "$$PLAN_FAILED" = true ]; then
+    #   echo "One or more Terragrunt plans failed. Exiting with error."
+    #   exit 1
+    # fi
 
 # Step 2: Fetch GitHub Token
 - id: 'Fetch GitHub Token'
@@ -200,6 +203,11 @@ steps:
       done
     else
       echo "Not a PR. Skipping comment."
+    fi
+
+    if [ -f /workspace/plan_failed ]; then
+      echo "One or more Terragrunt plans failed. Exiting with error."
+      exit 1
     fi
 
 # Step 4: Post Infracost Comment
