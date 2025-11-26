@@ -28,7 +28,7 @@ locals {
       cloud_run_memory        = "4Gi"
       cloud_run_min_instances = 5
       cloud_run_max_instances = 20 # Assuming max > min
-      cloud_run_concurrency   = 20
+      cloud_run_concurrency   = 80
       cloudsql_tier           = "db-perf-optimized-8"
       cloudsql_edition        = "ENTERPRISE_PLUS"
       cloudsql_ha             = true
@@ -44,7 +44,7 @@ locals {
       cloud_run_memory        = "8Gi"
       cloud_run_min_instances = 10
       cloud_run_max_instances = 20 # Assuming max > min
-      cloud_run_concurrency   = 20
+      cloud_run_concurrency   = 200
       cloudsql_tier           = "db-perf-optimized-16"
       cloudsql_edition        = "ENTERPRISE_PLUS"
       cloudsql_ha             = true
