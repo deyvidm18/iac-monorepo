@@ -6,6 +6,7 @@ locals {
   tf_bucket = "tf-iac-state-dmartinez"
 
   // T-Shirt Sizing
+  t_shirt_sizes = {
     small = {
       cloud_run_cpu           = 1
       cloud_run_memory        = "512Mi"
