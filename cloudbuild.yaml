@@ -50,12 +50,7 @@ steps:
     echo "Changed files: $$CHANGED_FILES"
 
     # Detect Target Directories
-    if echo "$$CHANGED_FILES" | grep -q "modules/" || echo "$$CHANGED_FILES" | grep -q "env.hcl"; then
-      echo "Shared module or environment default changed, targeting ALL applications."
-      TARGET_DIRS=$(find live -type f -name 'terragrunt.hcl' | xargs dirname)
-    else
-      TARGET_DIRS=$(echo "$$CHANGED_FILES" | grep -o 'live/[^/]*/[^/]*' | sort | uniq)
-    fi
+    TARGET_DIRS=$(echo "$$CHANGED_FILES" | grep -o 'live/[^/]*/[^/]*' | sort | uniq)
 
     if [ -z "$$TARGET_DIRS" ]; then
       echo "No infrastructure changes detected."
@@ -78,11 +73,12 @@ steps:
           PLAN_FILENAME=$(echo "$$DIR" | sed 's/[^a-zA-Z0-9]/-/g')
           
           # Generate binary plan
-          terragrunt plan -out=plan.binary -no-color > /dev/null 2>&1
-          if [ $$? -ne 0 ]; then
+          if ! terragrunt plan -out=plan.binary -no-color > /dev/null 2>&1; then
             PLAN_FAILED=true
             # Capture error output if plan failed
-            terragrunt plan -no-color > "/workspace/plans/$${PLAN_FILENAME}.txt" 2>&1
+            terragrunt plan -no-color > "/workspace/plans/$${PLAN_FILENAME}.txt" 2>&1 || true
+            cat "/workspace/plans/$${PLAN_FILENAME}.txt" # Print to stdout for debugging
+            touch /workspace/plan_failed
           else
             # Convert to text for existing logic
             terragrunt show -no-color plan.binary > "/workspace/plans/$${PLAN_FILENAME}.txt"
@@ -99,10 +95,11 @@ steps:
       )
     done
 
-    if [ "$$PLAN_FAILED" = true ]; then
-      echo "One or more Terragrunt plans failed. Exiting with error."
-      exit 1
-    fi
+    # Do not exit here, let Step 3 post the results first
+    # if [ "$$PLAN_FAILED" = true ]; then
+    #   echo "One or more Terragrunt plans failed. Exiting with error."
+    #   exit 1
+    # fi
 
 # Step 2: Fetch GitHub Token
 - id: 'Fetch GitHub Token'
@@ -205,6 +202,11 @@ steps:
       done
     else
       echo "Not a PR. Skipping comment."
+    fi
+
+    if [ -f /workspace/plan_failed ]; then
+      echo "One or more Terragrunt plans failed. Exiting with error."
+      exit 1
     fi
 
 # Step 4: Post Infracost Comment
